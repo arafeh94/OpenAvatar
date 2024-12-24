@@ -4,7 +4,7 @@ from abc import abstractmethod, ABC
 from collections import defaultdict
 from typing import List
 
-from src.core.interfaces.Pipe import Pipe
+from external.core.interfaces.Pipe import Pipe
 
 
 class Pipeline:

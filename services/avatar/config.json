@@ -1,0 +1,22 @@
+{
+  "avatar": {
+    "avatar_dir": "/home/arafeh/PycharmProjects/avatar_rag_back_end/avatar/avatar_only/avatar_dir/",
+    "frame": "frame_{}.pkl",
+    "face": "face_{}.pkl",
+    "video": "video_{}.pkl",
+    "fps": 24,
+    "buffer_size": 96,
+    "wav2lip_batch_size": 96,
+    "mel_step_size": 16,
+    "pads": [0, 10, 0, 0],
+    "face_det_batch_size": 1,
+    "resize_factor": 1,
+    "crop": [0, -1, 0, -1],
+    "box": [-1, -1, -1, -1],
+    "rotate": false,
+    "nosmooth": false,
+    "img_size": 96,
+    "static": false
+  },
+  "_comment": "manifest"
+}

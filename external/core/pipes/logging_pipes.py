@@ -1,6 +1,6 @@
 import logging
 
-from src.core.pipeline import Pipe
+from external.core.pipeline import Pipe
 
 
 class InputPrompt(Pipe):

@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABC
-from src.core.pipeline import Pipe
+from external.core.pipeline import Pipe
 import numpy as np
 
 

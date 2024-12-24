@@ -1,6 +1,6 @@
 from openai import OpenAI
 
-from src.core.interfaces.base_service import BaseService
+from external.core.interfaces.base_service import BaseService
 
 
 class LLM(BaseService):

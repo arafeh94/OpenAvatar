@@ -1,5 +1,5 @@
-from src.core.pipeline import Pipe
-from src.plugins.vllm import LLM
+from external.core.pipeline import Pipe
+from external.plugins.vllm import LLM
 
 
 class LLMPipe(Pipe):

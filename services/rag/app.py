@@ -2,7 +2,7 @@ import numpy as np
 from fastapi import FastAPI, HTTPException
 from typing import List
 
-from src.plugins.faiss_indexer import FaissIndexer
+from external.plugins.faiss_indexer import FaissIndexer
 
 app = FastAPI()
 
