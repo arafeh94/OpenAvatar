@@ -1,10 +1,12 @@
 import asyncio
+import json
 import os
 import tempfile
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from moviepy import ImageSequenceClip
+from starlette.middleware.cors import CORSMiddleware
 
 from external.core.utils.lazy_loader import LazyLoader
 from external.core.utils.text_split import split_text
@@ -14,6 +16,14 @@ from external.plugins.lip_sync.core.models import AvatarWave2LipModel
 from external.plugins.text2speech import Text2Speech
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 avatar_model = AvatarWave2LipModel()
 speech_loader = LazyLoader(Text2Speech, force_load=True)
 video_buffers = {}
@@ -25,6 +35,9 @@ class AudioRequest:
     def __init__(self, text, voice_id):
         self.text_gen = split_text(text, 200)
         self.voice_id = voice_id
+
+    def __iter__(self):
+        return self
 
     def __next__(self):
         return next(self.text_gen, None)
@@ -87,43 +100,41 @@ def stream_clip(clip: ImageSequenceClip):
         os.remove(tmpfile.name)
 
 
-@app.get("/request")
-async def request_avatar_old(text: str, voice_id: int) -> dict:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
-        speech_loader.get().convert(text, voice_id).as_file(temp_file.name)
-        token = register_video_buffer(temp_file.name)
-    return {'token': token, 'in_progress': list(video_buffers.keys())}
+@app.get("/get_tokens")
+async def get_tokens() -> dict:
+    return {'in_progress_video': list(video_buffers.keys()), 'request_map': audio_video_map}
 
 
 @app.get("/request")
-async def request_avatar(text: str, voice_id: int) -> dict:
+async def request_avatar(text: str, voice_id: int, as_token=True) -> dict:
     token = register_audio_buffer(text, voice_id)
-    return {'token': token, 'in_progress_video': list(video_buffers.keys()),
-            'in_progress_audio': list(audio_buffers.values())}
+    if as_token:
+        others = await get_tokens()
+        return {'token': token, **others}
+    return stream_next(token)
 
 
 @app.get("/stream_next")
-async def run_main(token):
+async def stream_next(token):
     try:
         clip = get_next_clip(token)
-        while clip is not None:
+        if clip is None:
             raise HTTPException(status_code=404, detail="Text is fully exhausted")
         return StreamingResponse(stream_clip(clip), media_type="video/mp4")
     except Exception as e:
-        raise HTTPException(status_code=404, detail="Requested token does not exists")
+        raise e
 
 
 if __name__ == "__main__":
-    # uvicorn.run(app, host="localhost", port=8000)
-    #     text = """Technology has significantly impacted various aspects of our lives, from how we communicate to how we work and learn. It has led to the development of new industries, improved productivity, and increased accessibility to information. However, with these advancements come new challenges, such as the growing digital divide. While some regions and populations have easy access to technology, others are left behind, unable to fully participate in the digital age.
+    uvicorn.run(app, host="localhost", port=8080)
+    # text = """Technology has significantly impacted various aspects of our lives, from how we communicate to how we work and learn. It has led to the development of new industries, improved productivity, and increased accessibility to information. However, with these advancements come new challenges, such as the growing digital divide. While some regions and populations have easy access to technology, others are left behind, unable to fully participate in the digital age.
     # In education, technology has transformed traditional learning methods. Online courses, virtual classrooms, and digital resources have made education more flexible and accessible. Students can now learn from anywhere in the world, provided they have the necessary technology. Yet, this shift to digital learning has its downsides, including concerns over the lack of face-to-face interaction and the potential for widening educational inequalities.
     # As technology continues to advance, it is essential that we address these challenges. Ensuring equal access to technology and preserving the value of human interaction in education will be crucial to shaping a more inclusive and balanced future.
-    #     """
-    text = "hello samira"
-    tokens_dict = asyncio.run(request_avatar(text, 1))
-    token = tokens_dict['token']
-    while True:
-        clip = get_next_clip(token)
-        if clip is None:
-            break
-        clip.preview()
+    # """
+    # tokens_dict = asyncio.run(request_avatar(text, 1))
+    # token = tokens_dict['token']
+    # while True:
+    #     clip = get_next_clip(token)
+    #     if clip is None:
+    #         break
+    #     clip.preview()

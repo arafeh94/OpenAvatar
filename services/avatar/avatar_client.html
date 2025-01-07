@@ -70,7 +70,7 @@
             }
         }
 
-        getUrl(baseUrl = "http://localhost:8000/stream_next") {
+        getUrl(baseUrl = "http://localhost:8080/stream_next") {
             return `${baseUrl}?token=${this.token}&t=${new Date().getTime()}`;
         }
 
@@ -111,12 +111,48 @@
 
 </script>
 
-<div id="video-container" class="video-container">
+<div id="video-container" class="video-container"></div>
+<form id="textForm">
+    <label for="text">Enter your text:</label><br>
+    <textarea id="text" name="text" rows="10" cols="50" required></textarea><br><br>
+    <label for="voice_id">Voice ID:</label>
+    <input type="number" id="voice_id" name="voice_id" value="1" required><br><br>
+    <button type="submit">Submit</button>
+</form>
+<div id="response" class="result" style="display: none;"></div>
 
-</div>
 
 <script>
     videoPlayer = new VideoPlayer('video-container')
+    document.getElementById('textForm').addEventListener('submit', async function (event) {
+        event.preventDefault();
+
+        const text = document.getElementById('text').value;
+        const voice_id = document.getElementById('voice_id').value;
+
+        const url = `http://localhost:8080/request?text=${encodeURIComponent(text)}&voice_id=${voice_id}&as_token=true`;
+
+        try {
+            const response = await fetch(url)
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            const token = result.token
+            const responseDiv = document.getElementById('response');
+            responseDiv.style.display = 'block';
+            responseDiv.textContent = `Response: ${token}`;
+            videoPlayer.play(token);
+
+        } catch (error) {
+            console.error('Error:', error);
+            const responseDiv = document.getElementById('response');
+            responseDiv.style.display = 'block';
+            responseDiv.textContent = `Error: ${error.message}`;
+        }
+    });
 </script>
 
 </body>

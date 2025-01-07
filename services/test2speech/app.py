@@ -12,11 +12,11 @@ from scipy.io.wavfile import write
 from transformers import pipeline
 from datasets import load_dataset
 
-app = FastAPI()
+from external.core.utils.lazy_loader import LazyLoader
+from external.plugins.text2speech import Text2Speech
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-speech_model = pipeline("text-to-speech", "microsoft/speecht5_tts", device=device)
-speech_dataset = load_dataset("Matthijs/cmu-arctic-xvectors", split="validation")
+app = FastAPI()
+speech_loader = LazyLoader(Text2Speech, force_load=True)
 
 
 class SpeechRequest(BaseModel):
@@ -27,15 +27,7 @@ class SpeechRequest(BaseModel):
 @app.get("/generate_speech/{text}/{voice_id}", operation_id="generate_speech", tags=['speech'],
          response_class=StreamingResponse)
 async def generate_speech(text: str, voice_id: int = 7306) -> StreamingResponse:
-    voice_id = int(voice_id) if voice_id is not None else 7306
-    speaker_embeddings = torch.tensor(speech_dataset[voice_id]["xvector"]).unsqueeze(0)
-    speech = speech_model(text, forward_params={"speaker_embeddings": speaker_embeddings})
-
-    buffer = io.BytesIO()
-    sf.write(buffer, speech["audio"], samplerate=speech["sampling_rate"], format="WAV")
-    buffer.seek(0)
-
-    return StreamingResponse(buffer, media_type="audio/wav")
+    return speech_loader.get().convert(text, voice_id).as_streaming_response()
 
 
 # curl -X POST "http://127.0.0.1:8000/generate_speech_post/7306"
