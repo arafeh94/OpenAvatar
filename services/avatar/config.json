@@ -1,5 +1,6 @@
 {
   "avatar": {
+    "gan_model_path": "/home/arafeh/PycharmProjects/avatar_rag_back_end/avatar/checkpoints/wav2lip_gan_96.onnx",
     "avatar_dir": "/home/arafeh/PycharmProjects/avatar_rag_back_end/avatar/avatar_only/avatar_dir/",
     "frame": "frame_{}.pkl",
     "face": "face_{}.pkl",
