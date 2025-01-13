@@ -199,6 +199,9 @@ class Avatar(object):
         frame_gen = NonBlockingLookaheadGenerator(self._base_frame_generator(mel_chunks))
         return NonBlockingLookaheadGenerator(self._lip_sync_generator(frame_gen))
 
+    def get_idle_stream(self):
+        return self._get_avatar_video()
+
     def _frame_buffer(self, audio_path):
         def frame_buffer_generator():
             frame_batch = []
@@ -241,3 +244,18 @@ class Avatar(object):
         command = f'ffmpeg -y -i {audio_path} -i {temp} -strict -2 -q:v 1 {output}'
         subprocess.call(command, shell=platform.system() != 'Windows')
         os.remove(temp)
+
+
+class AvatarManager:
+    def __init__(self, avatar_model):
+        self.avatar_cache = {}
+        self.avatar_model = avatar_model
+
+    def get_avatar(self, persona):
+        if persona not in self.avatar_cache:
+            avatar = Avatar(persona, self.avatar_model)
+            avatar.init()
+            self.avatar_cache[persona] = avatar
+        else:
+            avatar = self.avatar_cache[persona]
+        return avatar

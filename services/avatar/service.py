@@ -1,9 +1,7 @@
-import asyncio
-import json
 import os
 import tempfile
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from moviepy import ImageSequenceClip
 from starlette.middleware.cors import CORSMiddleware
@@ -11,9 +9,10 @@ from starlette.middleware.cors import CORSMiddleware
 from external.core.utils.lazy_loader import LazyLoader
 from external.core.utils.text_split import split_text
 from external.core.utils.token_generator import generate_token
-from external.plugins.lip_sync.core.avatar import Avatar
+from external.plugins.lip_sync.core.avatar import AvatarManager
 from external.plugins.lip_sync.core.models import AvatarWave2LipModel
 from external.plugins.text2speech import Text2Speech
+from external.tools.video_stream import video_stream
 
 app = FastAPI()
 app.add_middleware(
@@ -24,7 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-avatar_model = AvatarWave2LipModel()
+avatar_manager = AvatarManager(AvatarWave2LipModel())
 speech_loader = LazyLoader(Text2Speech, force_load=True)
 video_buffers = {}
 audio_buffers = {}
@@ -43,35 +42,34 @@ class AudioRequest:
         return next(self.text_gen, None)
 
 
-def register_video_buffer(audio_path, avatar_cache="lisa_casual_720_pl"):
+def register_video_buffer(audio_path, persona):
     token = generate_token()
-    avatar = Avatar(avatar_cache, avatar_model)
-    avatar.init()
+    avatar = avatar_manager.get_avatar(persona)
     video_buffers[token] = avatar.video_buffer(audio_path)
     return token
 
 
-def register_audio_buffer(text, voice_id):
+def register_audio_buffer(text, voice_id, persona):
     token = generate_token()
     audio_request = AudioRequest(text, voice_id)
     audio_buffers[token] = audio_request
     text_request = next(audio_request)
     print("generating text for voice {}".format(text_request))
-    video_token = request_audio_stream(text_request, audio_request.voice_id)
+    video_token = request_audio_stream(text_request, audio_request.voice_id, persona)
     audio_video_map[token] = video_token
     return token
 
 
-def request_audio_stream(text, voice_id):
+def request_audio_stream(text, voice_id, persona):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
         speech_loader.get().convert(text, voice_id).as_file(temp_file.name)
-        token = register_video_buffer(temp_file.name)
+        token = register_video_buffer(temp_file.name, persona)
     return token
 
 
-def get_next_clip(audio_token):
+def get_next_clip(audio_token, persona):
     if audio_token not in audio_buffers:
-        raise KeyError(f"Requested token [{audio_token}] does not exist. Should register first")
+        return None
     video_token = audio_video_map[audio_token]
     next_buffer = next(video_buffers[video_token], None)
     if next_buffer is None:
@@ -86,7 +84,7 @@ def get_next_clip(audio_token):
             del audio_buffers[audio_token]
             return None
         print("generating audio for request:", audio_request_text)
-        new_video_token = request_audio_stream(audio_request_text, audio_request.voice_id)
+        new_video_token = request_audio_stream(audio_request_text, audio_request.voice_id, persona)
         audio_video_map[audio_token] = new_video_token
         next_buffer = next(video_buffers[new_video_token], None)
     return next_buffer
@@ -106,20 +104,26 @@ async def get_tokens() -> dict:
 
 
 @app.get("/request")
-async def request_avatar(text: str, voice_id: int, as_token=True) -> dict:
-    token = register_audio_buffer(text, voice_id)
+async def request_avatar(text: str, voice_id: int, persona: str, as_token=True) -> dict:
+    token = register_audio_buffer(text, voice_id, persona)
     if as_token:
         others = await get_tokens()
         return {'token': token, **others}
     return stream_next(token)
 
 
+@app.get("/idle")
+def idle(persona):
+    avatar = avatar_manager.get_avatar(persona)
+    return video_stream(avatar.get_idle_stream())
+
+
 @app.get("/stream_next")
 async def stream_next(token):
     try:
-        clip = get_next_clip(token)
+        clip = get_next_clip(token, 'lisa_casual_720_pl')
         if clip is None:
-            raise HTTPException(status_code=404, detail="Text is fully exhausted")
+            return "no more clips"
         return StreamingResponse(stream_clip(clip), media_type="video/mp4")
     except Exception as e:
         raise e
@@ -127,14 +131,3 @@ async def stream_next(token):
 
 if __name__ == "__main__":
     uvicorn.run(app, host="localhost", port=8080)
-    # text = """Technology has significantly impacted various aspects of our lives, from how we communicate to how we work and learn. It has led to the development of new industries, improved productivity, and increased accessibility to information. However, with these advancements come new challenges, such as the growing digital divide. While some regions and populations have easy access to technology, others are left behind, unable to fully participate in the digital age.
-    # In education, technology has transformed traditional learning methods. Online courses, virtual classrooms, and digital resources have made education more flexible and accessible. Students can now learn from anywhere in the world, provided they have the necessary technology. Yet, this shift to digital learning has its downsides, including concerns over the lack of face-to-face interaction and the potential for widening educational inequalities.
-    # As technology continues to advance, it is essential that we address these challenges. Ensuring equal access to technology and preserving the value of human interaction in education will be crucial to shaping a more inclusive and balanced future.
-    # """
-    # tokens_dict = asyncio.run(request_avatar(text, 1))
-    # token = tokens_dict['token']
-    # while True:
-    #     clip = get_next_clip(token)
-    #     if clip is None:
-    #         break
-    #     clip.preview()
