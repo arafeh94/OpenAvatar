@@ -1,6 +1,8 @@
 import json
+import logging
 import os
 import glob
+import time
 
 
 class Manifest:
@@ -17,6 +19,9 @@ class Manifest:
 
     def _initialize(self):
         """Search all subdirectories below the base path for valid config.json files and load them."""
+        logger = logging.getLogger(self.__class__.__name__)
+        logger.info("Loading config files...")
+        time_checkpoint = time.time()
         if self._file_path is None:
             raise ValueError("Base path must be set before initialization.")
 
@@ -27,9 +32,12 @@ class Manifest:
                 try:
                     data = json.load(file)
                     if isinstance(data, dict) and 'manifest' in data.get('_comment'):
+                        logger.info("Loading manifest from {}".format(config_file))
                         self._merge_config(data)
                 except json.JSONDecodeError:
                     print(f"Skipping invalid JSON file: {config_file}")
+        time_checkpoint = time.time() - time_checkpoint
+        logger.info("Finished loading configuration in {} seconds.".format(time_checkpoint))
 
     def _merge_config(self, new_data):
         """Merge the configuration data into the existing data."""
