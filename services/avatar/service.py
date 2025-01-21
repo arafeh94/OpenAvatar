@@ -1,19 +1,21 @@
+import logging
 import os
 import tempfile
+import threading
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from moviepy import ImageSequenceClip
 from starlette.middleware.cors import CORSMiddleware
 
-from external.core.utils.lazy_loader import LazyLoader
-from external.core.utils.text_split import split_text
 from external.core.utils.token_generator import generate_token
-from external.plugins.lip_sync.core.avatar import AvatarManager
-from external.plugins.lip_sync.core.models import AvatarWave2LipModel
-from external.plugins.text2speech import Text2Speech
+from external.tools import utils
+from external.tools.memory_profiler import getsize
 from external.tools.video_stream import video_stream
+from services.avatar.context import AvatarServiceDataManager, AudioRequest
 
+utils.enable_logging()
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -23,70 +25,79 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-avatar_manager = AvatarManager(AvatarWave2LipModel())
-speech_loader = LazyLoader(Text2Speech, force_load=True)
-video_buffers = {}
-audio_buffers = {}
-audio_video_map = {}
-
-
-class AudioRequest:
-    def __init__(self, text, voice_id):
-        self.text_gen = split_text(text, 200)
-        self.voice_id = voice_id
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        return next(self.text_gen, None)
+logger = logging.getLogger('Avatar-Service')
+data_manager = AvatarServiceDataManager()
 
 
 def register_video_buffer(audio_path, persona):
     token = generate_token()
-    avatar = avatar_manager.get_avatar(persona)
-    video_buffers[token] = avatar.video_buffer(audio_path)
+    avatar = data_manager.avatar_manager.get_avatar(persona)
+    data_manager.video_buffers[token] = avatar.video_buffer(audio_path)
     return token
 
 
 def register_audio_buffer(text, voice_id, persona):
     token = generate_token()
     audio_request = AudioRequest(text, voice_id)
-    audio_buffers[token] = audio_request
+    data_manager.audio_buffers[token] = audio_request
     text_request = next(audio_request)
-    print("generating text for voice {}".format(text_request))
+    logger.info("Text-Voice request: {}".format(text_request))
     video_token = request_audio_stream(text_request, audio_request.voice_id, persona)
-    audio_video_map[token] = video_token
+    data_manager.audio_video_map[token] = video_token
     return token
 
 
 def request_audio_stream(text, voice_id, persona):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
-        speech_loader.get().convert(text, voice_id).as_file(temp_file.name)
+        data_manager.speech_loader.get().convert(text, voice_id).as_file(temp_file.name)
         token = register_video_buffer(temp_file.name, persona)
     return token
 
 
-def get_next_clip(audio_token, persona):
-    if audio_token not in audio_buffers:
+def non_blocking_preload(audio_token, persona):
+    def preload():
+        data_manager.preloaded_video[audio_token] = get_next_clip(audio_token, persona)
+
+    thread = threading.Thread(target=preload)
+    data_manager.preloading_threads[audio_token] = thread
+    thread.start()
+
+
+def get_preloaded_video(token):
+    if token not in data_manager.preloaded_video:
+        return False
+    if token in data_manager.preloading_threads:
+        thread = data_manager.preloading_threads[token]
+        thread.join()
+    data_manager.preloading_threads.pop(token)
+    return data_manager.preloaded_video.pop(token)
+
+
+def get_next_clip(audio_token, persona, preload=False):
+    if audio_token not in data_manager.audio_buffers:
         return None
-    video_token = audio_video_map[audio_token]
-    next_buffer = next(video_buffers[video_token], None)
-    if next_buffer is None:
-        # this means video buffer of a text chunk ended, we have to generate a new one
-        del video_buffers[video_token]
-        # link the video token with the text token, removing the existing one and keeping only the new one
-        del audio_video_map[audio_token]
-        audio_request: AudioRequest = audio_buffers[audio_token]
-        audio_request_text = next(audio_request, None)
-        if audio_request_text is None:
-            # this means that the full video is generated
-            del audio_buffers[audio_token]
-            return None
-        print("generating audio for request:", audio_request_text)
-        new_video_token = request_audio_stream(audio_request_text, audio_request.voice_id, persona)
-        audio_video_map[audio_token] = new_video_token
-        next_buffer = next(video_buffers[new_video_token], None)
+    next_buffer = get_preloaded_video(audio_token)
+    if not next_buffer:
+        video_token = data_manager.audio_video_map[audio_token]
+        next_buffer = next(data_manager.video_buffers[video_token], None)
+        if next_buffer is None:
+            # this means video buffer of a text chunk ended, we have to generate a new one
+            del data_manager.video_buffers[video_token]
+            # link the video token with the text token, removing the existing one and keeping only the new one
+            del data_manager.audio_video_map[audio_token]
+            audio_request: AudioRequest = data_manager.audio_buffers[audio_token]
+            audio_request_text = next(audio_request, None)
+            if audio_request_text is None:
+                # this means that the full video is generated
+                del data_manager.audio_buffers[audio_token]
+                return None
+            logger.info("Generating TTS for text: {}".format(audio_request_text))
+            new_video_token = request_audio_stream(audio_request_text, audio_request.voice_id, persona)
+            data_manager.audio_video_map[audio_token] = new_video_token
+            next_buffer = next(data_manager.video_buffers[new_video_token], None)
+    if preload:
+        # start a preloading process in background to avoid the video from cutting
+        non_blocking_preload(audio_token, persona)
     return next_buffer
 
 
@@ -100,7 +111,7 @@ def stream_clip(clip: ImageSequenceClip):
 
 @app.get("/get_tokens")
 async def get_tokens() -> dict:
-    return {'in_progress_video': list(video_buffers.keys()), 'request_map': audio_video_map}
+    return {'in_progress_video': list(data_manager.video_buffers.keys()), 'request_map': data_manager.audio_video_map}
 
 
 @app.get("/request")
@@ -114,14 +125,15 @@ async def request_avatar(text: str, voice_id: int, persona: str, as_token=True) 
 
 @app.get("/idle")
 def idle(persona):
-    avatar = avatar_manager.get_avatar(persona)
+    avatar = data_manager.avatar_manager.get_avatar(persona)
     return video_stream(avatar.get_idle_stream())
 
 
 @app.get("/stream_next")
 async def stream_next(token):
     try:
-        clip = get_next_clip(token, 'lisa_casual_720_pl')
+        logger.info("Used Memory: {}".format(getsize(data_manager)))
+        clip = get_next_clip(token, 'lisa_casual_720_pl', preload=True)
         if clip is None:
             return "no more clips"
         return StreamingResponse(stream_clip(clip), media_type="video/mp4")

@@ -2,6 +2,14 @@ import asyncio
 
 from services.avatar.service import request_avatar, get_next_clip
 
+
+def aa(**kwargs):
+    print(kwargs)
+    return 1
+
+
+print(aa())
+exit(1)
 text = "Hello, this is a test text."
 tokens_dict = asyncio.run(request_avatar(text, 1))
 token = tokens_dict['token']

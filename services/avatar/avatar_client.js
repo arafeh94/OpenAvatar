@@ -20,6 +20,7 @@ class AvatarClient {
         this.token = null
         this.players.forEach((player) => {
             player.onerror = (event) => {
+                player.pause()
                 this.other(event.target).onended = () => {
                     this.stream(null, true)
                 }

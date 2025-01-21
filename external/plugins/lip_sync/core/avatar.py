@@ -1,7 +1,9 @@
+import logging
 import os
 import pickle
 import platform
 import subprocess
+from logging import Logger
 from types import SimpleNamespace
 import time
 import random
@@ -67,6 +69,7 @@ class Avatar(object):
    """
 
     def __init__(self, avatar_id, lip_model: AIModel, **kwargs):
+        self.logger = logging.getLogger("Avatar")
         self.avatar_id = avatar_id
         self.lip_model = lip_model
 
@@ -217,7 +220,8 @@ class Avatar(object):
 
         return frame_buffer_generator()
 
-    def video_buffer(self, audio_path):
+    def video_buffer(self, audio_path, **kwargs):
+        self.update_args(kwargs)
         audio_clip = AudioFileClip(audio_path)
         audio_time = self.args.buffer_size / self.args.fps
         for idx, fr24 in enumerate(self._frame_buffer(audio_path)):
@@ -226,6 +230,10 @@ class Avatar(object):
             end_time = (idx + 1) * audio_time
             video_clip = video_clip.with_audio(audio_clip.subclipped(start_time, min(end_time, audio_clip.duration)))
             yield video_clip
+
+    def update_args(self, new_args):
+        if new_args:
+            self.args = SimpleNamespace(**{**vars(self.args), **new_args})
 
     def video_writer(self, audio_path, output):
         temp = f'_temp_avatar_{time.strftime("%Y%m%d_%H%M%S")}_{random.randint(0, 99999)}.avi'
