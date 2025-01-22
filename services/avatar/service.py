@@ -117,7 +117,6 @@ async def get_tokens() -> dict:
 @app.get("/request")
 async def request_avatar(text: str, voice_id: int, persona: str, as_token=True) -> dict:
     token = register_audio_buffer(text, voice_id, persona)
-    data_manager.token_persona[token] = persona
     if as_token:
         others = await get_tokens()
         return {'token': token, **others}
@@ -131,10 +130,10 @@ def idle(persona):
 
 
 @app.get("/stream_next")
-async def stream_next(token):
+async def stream_next(token, persona):
     try:
         logger.info("Used Memory: {}".format(getsize(data_manager)))
-        clip = get_next_clip(token, data_manager.token_persona[token], preload=True)
+        clip = get_next_clip(token, persona, preload=True)
         if clip is None:
             return "no more clips"
         return StreamingResponse(stream_clip(clip), media_type="video/mp4")
