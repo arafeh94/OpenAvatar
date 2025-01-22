@@ -16,6 +16,7 @@ class AvatarServiceDataManager:
         self.audio_video_map = {}
         self.preloaded_video = {}
         self.preloading_threads = {}
+        self.token_persona = {}
 
     def memory(self):
         size_info = {}
