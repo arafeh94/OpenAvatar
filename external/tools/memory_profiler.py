@@ -8,7 +8,7 @@ from gc import get_referents
 BLACKLIST = type, ModuleType, FunctionType
 
 
-def getsize(obj):
+def getsize(obj, display_x=5):
     """sum size of object & members."""
     if isinstance(obj, BLACKLIST):
         raise TypeError('getsize() does not take argument of type: ' + str(type(obj)))
@@ -26,7 +26,7 @@ def getsize(obj):
                 size += sizeof
                 need_referents.append(obj)
         objects = get_referents(*need_referents)
-    return size, top_items(memory_profile)
+    return size, top_items(memory_profile, display_x)
 
 
 def top_items(data_dict, x=5):

@@ -13,6 +13,7 @@ import torch
 import librosa
 from moviepy import AudioFileClip, ImageSequenceClip
 
+from external.tools import memory_profiler
 from manifest import Manifest
 from external.plugins.lip_sync.wave2lip import audio
 from external.core.interfaces.base_ai import AIModel
@@ -219,6 +220,10 @@ class Avatar(object):
                     yield np.array(frame_batch)
 
         return frame_buffer_generator()
+
+    def frame_buffer(self, audio_path, **kwargs):
+        self.update_args(kwargs)
+        return self._frame_buffer(audio_path)
 
     def video_buffer(self, audio_path, **kwargs):
         self.update_args(kwargs)

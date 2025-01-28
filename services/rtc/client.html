@@ -1,0 +1,108 @@
+<html lang="en">
+<head>
+    <title>RTC Client</title>
+</head>
+<body>
+<video id="video" autoplay playsinline></video>
+<audio id="audio" autoplay controls></audio>
+<script>
+    class Fetcher {
+        constructor(base_url = null) {
+            this.base_url = base_url;
+        }
+
+        async fetch(route, get = {}, post = null) {
+            const url = new URL(`${this.base_url}/${route}`);
+
+            Object.keys(get).forEach(key => url.searchParams.append(key, get[key]));
+
+            const options = {
+                method: post ? 'POST' : 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            };
+
+            if (post) {
+                options.body = JSON.stringify(post);
+            }
+
+            return fetch(url, options)
+        }
+    }
+
+    class AvatarRTCClient extends Fetcher {
+        static OPEN = 'onopen';
+        static CLOSE = 'onclose';
+        static MESSAGE = 'onmessage';
+        static TRACK = 'ontrack';
+
+        constructor() {
+            super("http://localhost:8000");
+            this.peer = new RTCPeerConnection();
+            this.token = null;
+            this.events = {};
+            this.peer.ondatachannel = (event) => {
+                const channel = event.channel;
+                channel.onopen = this.onopen.bind(this);
+                channel.onclose = this.onclose.bind(this);
+                channel.onmessage = this.onmessage.bind(this);
+            }
+            this.peer.ontrack = (event) => {
+                this.ontrack(event)
+            }
+
+            this.video = document.getElementById("video");
+            this.audio = document.getElementById("audio");
+        }
+
+        async request() {
+            const response = await this.fetch('register').then(response => response.json());
+            this.token = response.token;
+            await this.peer.setRemoteDescription(response.sdp);
+            await this.peer.setLocalDescription(await this.peer.createAnswer());
+            const params = {'token': this.token, 'sdp': JSON.stringify(this.peer.localDescription)}
+            const confirm = await this.fetch('confirm', params).then(response => response.json());
+            return confirm.status === 'accepted';
+        }
+
+        onopen() {
+            this.events[AvatarRTCClient.OPEN]?.();
+        }
+
+        onclose() {
+            this.events[AvatarRTCClient.CLOSE]?.();
+        }
+
+        onmessage(event) {
+            this.events[AvatarRTCClient.MESSAGE]?.(event.data);
+        }
+
+        ontrack(event) {
+            this.events[AvatarRTCClient.TRACK]?.(event);
+            const [stream] = event.streams; // Get the first stream
+
+            if (event.track.kind === 'video') {
+                this.video.srcObject = stream;
+            } else if (event.track.kind === 'audio') {
+                this.audio.srcObject = stream;
+            }
+        }
+
+        on(event, callback) {
+            this.events[event] = callback;
+        }
+
+    }
+
+    rtc = new AvatarRTCClient()
+    rtc.on(AvatarRTCClient.OPEN, () => {
+        console.log('RTC open');
+    })
+    rtc.on(AvatarRTCClient.MESSAGE, (message) => {
+        console.log(message);
+    })
+</script>
+<button onclick="rtc.request()">Connect</button>
+</body>
+</html>
