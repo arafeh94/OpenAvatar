@@ -13,7 +13,6 @@ class NonBlockingLookaheadGenerator:
         self._prefetch()
 
     def _prefetch(self):
-        """Fetch the next value and put it into the queue."""
         try:
             next_value = next(self._gen)
             self._queue.put(next_value)
@@ -26,7 +25,6 @@ class NonBlockingLookaheadGenerator:
         return self
 
     def __next__(self):
-        """Get the next value from the queue, and prefetch the next one in a non-blocking way."""
         if self._done:
             raise StopIteration
 

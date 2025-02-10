@@ -1,21 +1,15 @@
 import logging
 import os
 import pickle
-import platform
-import subprocess
-from logging import Logger
 from types import SimpleNamespace
-import time
-import random
 
 import numpy as np
 import torch
-import librosa
-from moviepy import AudioFileClip, ImageSequenceClip
 
-from external.tools import memory_profiler
+from external.core.utils.text_split import TextSampler
+from external.plugins.lip_sync.wave2lip.audio import melspectrogram
+from external.plugins.text2speech import Text2Speech, Audio
 from manifest import Manifest
-from external.plugins.lip_sync.wave2lip import audio
 from external.core.interfaces.base_ai import AIModel
 from external.tools.async_generator import NonBlockingLookaheadGenerator
 from external.tools.atomic_id import AtomicID
@@ -196,9 +190,8 @@ class Avatar(object):
                 predicted_frames.append(base_frame)
             yield np.array(predicted_frames)
 
-    def _synced_frame_generator(self, audio_path):
-        wav, sample_rate = librosa.core.load(audio_path, sr=16000)
-        mel = audio.melspectrogram(wav)
+    def lip_synced_frame_generator(self, audio: Audio):
+        mel = melspectrogram(audio.samples)
         mel_chunks = self._get_mel_chunks(mel)
         frame_gen = NonBlockingLookaheadGenerator(self._base_frame_generator(mel_chunks))
         return NonBlockingLookaheadGenerator(self._lip_sync_generator(frame_gen))
@@ -206,10 +199,10 @@ class Avatar(object):
     def get_idle_stream(self):
         return self._get_avatar_video()
 
-    def _frame_buffer(self, audio_path):
+    def _frame_buffer(self, audio: Audio):
         def frame_buffer_generator():
             frame_batch = []
-            frame_generator = self._synced_frame_generator(audio_path)
+            frame_generator = self.lip_synced_frame_generator(audio)
             for _, prediction_batch in enumerate(frame_generator):
                 for frame in prediction_batch:
                     frame_batch.append(frame)
@@ -221,48 +214,46 @@ class Avatar(object):
 
         return frame_buffer_generator()
 
-    def frame_buffer(self, audio_path, **kwargs):
+    def frame_buffer(self, audio: Audio, **kwargs):
         self.update_args(kwargs)
-        return self._frame_buffer(audio_path)
+        return NonBlockingLookaheadGenerator(self._frame_buffer(audio))
 
-    def video_buffer(self, audio_path, **kwargs):
+    def stream(self, audio: Audio, **kwargs):
         self.update_args(kwargs)
-        audio_clip = AudioFileClip(audio_path)
-        audio_time = self.args.buffer_size / self.args.fps
-        for idx, fr24 in enumerate(self._frame_buffer(audio_path)):
-            video_clip = ImageSequenceClip([cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) for frame in fr24], fps=24)
-            start_time = idx * audio_time
-            end_time = (idx + 1) * audio_time
-            video_clip = video_clip.with_audio(audio_clip.subclipped(start_time, min(end_time, audio_clip.duration)))
-            yield video_clip
+        return AvatarBuffer(NonBlockingLookaheadGenerator(self._frame_buffer(audio)))
+
+    def tts_buffer(self, tts, text, **kwargs):
+        return AvatarTTS(self, tts).buffer(text, **kwargs)
 
     def update_args(self, new_args):
         if new_args:
             self.args = SimpleNamespace(**{**vars(self.args), **new_args})
 
-    def video_writer(self, audio_path, output):
-        temp = f'_temp_avatar_{time.strftime("%Y%m%d_%H%M%S")}_{random.randint(0, 99999)}.avi'
-        generator = self._synced_frame_generator(audio_path)
-        first_frame_batch = next(generator)
-        frame_h, frame_w = first_frame_batch[0].shape[:-1]
-        out = cv2.VideoWriter(temp, cv2.VideoWriter_fourcc(*'DIVX'), self.args.fps, (frame_w, frame_h))
-        print(f"write file p1: for {self.id}")
-        for frame in first_frame_batch:
-            out.write(frame)
-        for frame_batch in generator:
-            print(f"write file p2: for {self.id}")
-            for frame in frame_batch:
-                out.write(frame)
-        out.release()
-        command = f'ffmpeg -y -i {audio_path} -i {temp} -strict -2 -q:v 1 {output}'
-        subprocess.call(command, shell=platform.system() != 'Windows')
-        os.remove(temp)
+
+class AvatarTTS:
+    def __init__(self, avatar: Avatar, tts_convertor: Text2Speech):
+        self.tts_convertor = tts_convertor
+        self.avatar = avatar
+
+    def tts(self, text, **kwargs):
+        max_batch_size = kwargs.get('max_text_sample', Manifest().query('tts.max_text_sample', 200))
+        text_sampler = TextSampler(text, max_batch_size)
+        while True:
+            speech_text = next(text_sampler)
+            if speech_text is None:
+                break
+            audio = self.tts_convertor.convert(speech_text, **kwargs).as_audio()
+            yield self.avatar.stream(audio, **kwargs), audio
+
+    def buffer(self, text, **kwargs):
+        return NonBlockingLookaheadGenerator(self.tts(text, **kwargs))
 
 
 class AvatarManager:
-    def __init__(self, avatar_model):
+    def __init__(self, avatar_model, tts_convertor: Text2Speech):
         self.avatar_cache = {}
         self.avatar_model = avatar_model
+        self.tts_convertor = tts_convertor
 
     def get_avatar(self, persona):
         if persona not in self.avatar_cache:
@@ -272,3 +263,27 @@ class AvatarManager:
         else:
             avatar = self.avatar_cache[persona]
         return avatar
+
+    def tts_buffer(self, persona, text, **kwargs):
+        return self.get_avatar(persona).tts_buffer(self.tts_convertor, text, **kwargs)
+
+
+class AvatarBuffer:
+    def __init__(self, frame_buffer):
+        self._frame_buffer = frame_buffer
+        self._frame_stream = np.array([])
+        self._frame_index = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            if not self._frame_stream.any() or self._frame_index >= len(self._frame_stream):
+                self._frame_index = 0
+                self._frame_stream = next(self._frame_buffer)
+        except StopIteration:
+            raise StopIteration
+
+        self._frame_index += 1
+        return self._frame_stream[self._frame_index - 1]

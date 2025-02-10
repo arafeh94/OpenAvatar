@@ -1,19 +1,29 @@
-import numpy as np
-from fastapi import FastAPI, HTTPException
-from typing import List
+from typing import Union, Dict
 
-from external.plugins.faiss_indexer import FaissIndexer
+from fastapi import FastAPI
+import uvicorn
 
+from services.rag.chat import ChatService, Chat
+
+chat_service = ChatService.create()
+chat_manager: Dict[str, Chat] = []
 app = FastAPI()
 
-indexer = FaissIndexer(np.array([['arafeh'], ['kareem']]), np.array([0, 1]))
+
+@app.get("/register")
+def register(v: int = 2):
+    chat = chat_service.new_chat(v)
+    chat_manager[chat.id] = chat
+    return {"status": "success", 'token': chat.id}
 
 
-@app.get("/search", response_model=List[str])
-def search(search_query: str):
-    return indexer.search(search_query, 10)
+@app.get("/answer")
+def answer(token: str, question: str, sources=''):
+    if token not in chat_manager:
+        raise Exception('Token is not available, use /register first')
+    source = sources.split(',') if sources else None
+    return chat_manager[token].answer(question, source).model_dump_json()
 
 
-@app.get("/item", response_model=List[str])
-def get_item(item_id: int):
-    return ['1', '2']
+if __name__ == "__main__":
+    uvicorn.run(app, host="127.0.0.1", port=8000)

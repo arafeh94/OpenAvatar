@@ -4,13 +4,13 @@ from external.core.utils.lazy_loader import LazyLoader
 from external.core.utils.text_split import split_text
 from external.plugins.lip_sync.core.avatar import AvatarManager
 from external.plugins.lip_sync.core.models import AvatarWave2LipModel
-from external.plugins.text2speech import Text2Speech
+from external.plugins.text2speech import Text2Speech, MicrosoftText2Speech
 
 
 class AvatarServiceDataManager:
     def __init__(self):
-        self.avatar_manager = AvatarManager(AvatarWave2LipModel())
-        self.speech_loader = LazyLoader(Text2Speech, force_load=True)
+        self.speech_loader = LazyLoader(MicrosoftText2Speech, force_load=True)
+        self.avatar_manager = AvatarManager(AvatarWave2LipModel(), self.speech_loader.get())
         self.video_buffers = {}
         self.audio_buffers = {}
         self.audio_video_map = {}

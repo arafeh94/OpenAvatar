@@ -10,6 +10,7 @@ from moviepy import ImageSequenceClip
 from starlette.middleware.cors import CORSMiddleware
 
 from external.core.utils.token_generator import generate_token
+from external.plugins.lip_sync.core.avatar_mp4 import video_buffer
 from external.tools import utils
 from external.tools.memory_profiler import getsize
 from external.tools.video_stream import video_stream
@@ -32,7 +33,7 @@ data_manager = AvatarServiceDataManager()
 def register_video_buffer(audio_path, persona):
     token = generate_token()
     avatar = data_manager.avatar_manager.get_avatar(persona)
-    data_manager.video_buffers[token] = avatar.video_buffer(audio_path)
+    data_manager.video_buffers[token] = video_buffer(avatar, audio_path)
     return token
 
 

@@ -3,6 +3,7 @@ import logging
 import os
 import glob
 import time
+from types import SimpleNamespace
 
 
 class Manifest:
@@ -53,3 +54,15 @@ class Manifest:
     def get(self, name, default=None):
         """Retrieve the attribute, return default if not found."""
         return self._data.get(name, default)
+
+    def query(self, keys, default=None):
+        keys_list = keys.split('.')
+        val = self._data
+        for key in keys_list:
+            if val is None or not isinstance(val, dict):
+                return default
+            val = val.get(key, None)
+        return val if val is not None else default
+
+    def object(self, name, **kwargs) -> SimpleNamespace:
+        return SimpleNamespace(**{**dict(self.get(name)), **kwargs})

@@ -19,3 +19,14 @@ def split_text(text, max_length=400):
 
     if current_chunk:
         yield current_chunk
+
+
+class TextSampler:
+    def __init__(self, text, max_batch_size):
+        self.text_gen = split_text(text, max_batch_size)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self.text_gen, None)

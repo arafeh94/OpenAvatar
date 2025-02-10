@@ -80,8 +80,7 @@
 
         ontrack(event) {
             this.events[AvatarRTCClient.TRACK]?.(event);
-            const [stream] = event.streams; // Get the first stream
-
+            const [stream] = event.streams;
             if (event.track.kind === 'video') {
                 this.video.srcObject = stream;
             } else if (event.track.kind === 'audio') {
@@ -93,6 +92,11 @@
             this.events[event] = callback;
         }
 
+        async answer() {
+            const params = {'token': this.token, 'message': 'Hello samira, how are you today.'}
+            await this.fetch('answer', params).then(response => response.json());
+        }
+
     }
 
     rtc = new AvatarRTCClient()
@@ -102,7 +106,12 @@
     rtc.on(AvatarRTCClient.MESSAGE, (message) => {
         console.log(message);
     })
+    rtc.on(AvatarRTCClient.TRACK, (event) => {
+        console.log(event);
+        debugger
+    })
 </script>
 <button onclick="rtc.request()">Connect</button>
+<button onclick="rtc.answer()">Connect</button>
 </body>
 </html>
