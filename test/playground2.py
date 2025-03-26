@@ -1,7 +1,7 @@
 import sounddevice as sd
 import librosa
 
-from external.plugins.text2speech import MicrosoftText2Speech, Audio
+from core.plugins.text2speech import MicrosoftText2Speech, Audio
 
 
 def ror():

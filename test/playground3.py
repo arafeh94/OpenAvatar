@@ -2,9 +2,9 @@ import sounddevice as sd
 import librosa
 import time
 
-from external.plugins.lip_sync.core.avatar import Avatar, AvatarManager
-from external.plugins.lip_sync.core.models import AvatarWave2LipModel
-from external.plugins.text2speech import MicrosoftText2Speech, Audio
+from core.plugins.lip_sync.core.avatar import Avatar, AvatarManager
+from core.plugins.lip_sync.core.models import AvatarWave2LipModel
+from core.plugins.text2speech import MicrosoftText2Speech, Audio
 
 avatar_manager = AvatarManager(AvatarWave2LipModel(), MicrosoftText2Speech())
 

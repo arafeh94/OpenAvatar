@@ -1,6 +1,7 @@
 import asyncio
 import fractions
 import logging
+import queue
 from abc import ABC, abstractmethod
 from typing import Tuple, Union, Iterator
 import time
@@ -63,26 +64,31 @@ class VideoStream(VSTrack):
 
     def __init__(self):
         super().__init__()
-        self._frame_buffer: Union[Iterator, None] = None
         self._event = asyncio.Event()
+        self._frame_buffer = None
+        self.buffer_queue: queue.Queue[Iterator] = queue.Queue()
 
     def reset(self):
         self._frame_buffer = None
+        self.buffer_queue.empty()
         self.reset_timestamp()
         self._event.clear()
 
     async def next_frame(self) -> Frame:
-        if self._frame_buffer is None:
+        if self.buffer_queue.empty():
             await self._event.wait()
+
+        if self._frame_buffer is None:
+            self._frame_buffer = self.buffer_queue.get()
 
         try:
             frame = next(self._frame_buffer)
         except StopIteration:
-            self.reset()
+            self._frame_buffer = None
             return await self.next_frame()
 
         return frame
 
     def stream(self, frames_buffer):
-        self._frame_buffer = frames_buffer
+        self.buffer_queue.put(frames_buffer)
         self._event.set()

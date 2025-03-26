@@ -1,5 +1,5 @@
-from external.tools import utils
-from external.tools.downloader import Downloader
+from core.tools import utils
+from core.tools.downloader import Downloader
 
 utils.enable_logging()
 downloader = Downloader()

@@ -1,19 +1,10 @@
 # uvicorn services.test2speech.app:app
-import asyncio
-import io
-import shutil
-import soundfile as sf
-import numpy as np
 from fastapi.responses import StreamingResponse
-import torch
 from fastapi import FastAPI
 from pydantic import BaseModel
-from scipy.io.wavfile import write
-from transformers import pipeline
-from datasets import load_dataset
 
-from external.core.utils.lazy_loader import LazyLoader
-from external.plugins.text2speech import Text2Speech
+from core.utils import LazyLoader
+from core.plugins.text2speech import Text2Speech
 
 app = FastAPI()
 speech_loader = LazyLoader(Text2Speech, force_load=True)

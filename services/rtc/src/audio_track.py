@@ -9,7 +9,7 @@ from aiortc import MediaStreamTrack
 from aiortc.mediastreams import AUDIO_PTIME
 from av import AudioFrame
 
-from external.plugins.text2speech import Audio
+from core.plugins.text2speech import Audio
 
 
 class ASTrack(MediaStreamTrack, ABC):

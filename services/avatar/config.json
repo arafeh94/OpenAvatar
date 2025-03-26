@@ -1,7 +1,7 @@
 {
   "avatar": {
-    "gan_model_path": "/home/arafeh/PycharmProjects/avatar_rag_back_end/avatar/checkpoints/wav2lip_gan_96.onnx",
-    "avatar_dir": "/home/arafeh/PycharmProjects/avatar_rag_back_end/avatar/avatar_only/avatar_dir/",
+    "model_path": "/home/arafeh/files/wav2lip_gan.onnx",
+    "avatar_dir": "/home/arafeh/files/",
     "frame": "frame_{}.pkl",
     "face": "face_{}.pkl",
     "video": "video_{}.mp4",

@@ -1,7 +1,7 @@
 import logging
 
-from external.setup.phases.download_files import DownloadFilePhase
-from external.tools import utils
+from core.setup.phases.download_files import DownloadFilePhase
+from core.tools import utils
 
 utils.enable_logging()
 phases = [DownloadFilePhase()]

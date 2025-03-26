@@ -93,7 +93,7 @@
         }
 
         async answer() {
-            const params = {'token': this.token, 'message': 'Hello samira, how are you today.'}
+            const params = {'token': this.token, 'message': 'Hello samira, how are you today. I hope you are doing alright. As you know, there are a lot of things that you need to know about me.Hello samira, how are you today. I hope you are doing alright. As you know, there are a lot of things that you need to know about me.'}
             await this.fetch('answer', params).then(response => response.json());
         }
 
@@ -108,10 +108,9 @@
     })
     rtc.on(AvatarRTCClient.TRACK, (event) => {
         console.log(event);
-        debugger
     })
 </script>
 <button onclick="rtc.request()">Connect</button>
-<button onclick="rtc.answer()">Connect</button>
+<button onclick="rtc.answer()">Stream</button>
 </body>
 </html>

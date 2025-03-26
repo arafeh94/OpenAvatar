@@ -9,11 +9,11 @@ from fastapi.responses import StreamingResponse
 from moviepy import ImageSequenceClip
 from starlette.middleware.cors import CORSMiddleware
 
-from external.core.utils.token_generator import generate_token
-from external.plugins.lip_sync.core.avatar_mp4 import video_buffer
-from external.tools import utils
-from external.tools.memory_profiler import getsize
-from external.tools.video_stream import video_stream
+from core.utils.token_generator import generate_token
+from core.plugins.lip_sync.core.avatar_mp4 import video_buffer
+from core.tools import utils
+from core.tools.memory_profiler import getsize
+from core.tools.video_stream import video_stream
 from services.avatar.context import AvatarServiceDataManager, AudioRequest
 
 utils.enable_logging()

@@ -1,10 +1,10 @@
 from future.moves import sys
 
-from external.core.utils.lazy_loader import LazyLoader
-from external.core.utils.text_split import split_text
-from external.plugins.lip_sync.core.avatar import AvatarManager
-from external.plugins.lip_sync.core.models import AvatarWave2LipModel
-from external.plugins.text2speech import Text2Speech, MicrosoftText2Speech
+from core.utils import LazyLoader
+from core.utils.text_split import split_text
+from core.plugins.lip_sync.core.avatar import AvatarManager
+from core.plugins.lip_sync.core.models import AvatarWave2LipModel
+from core.plugins.text2speech import MicrosoftText2Speech
 
 
 class AvatarServiceDataManager:

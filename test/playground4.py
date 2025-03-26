@@ -1,6 +1,6 @@
-from external.plugins.lip_sync.core.avatar import AvatarManager
-from external.plugins.lip_sync.core.models import AvatarWave2LipModel
-from external.plugins.text2speech import MicrosoftText2Speech
+from core.plugins.lip_sync.core.avatar import AvatarManager
+from core.plugins.lip_sync.core.models import AvatarWave2LipModel
+from core.plugins.text2speech import MicrosoftText2Speech
 from manifest import Manifest
 
 text = ("Flare is an innovative blockchain network that brings smart contract functionality and interoperability to a "
