@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from moviepy import ImageSequenceClip
 from starlette.middleware.cors import CORSMiddleware
 
-from core.utils.token_generator import generate_token
+from core.tools.token_generator import generate_token
 from core.plugins.lip_sync.core.avatar_mp4 import video_buffer
 from core.tools import utils
 from core.tools.memory_profiler import getsize

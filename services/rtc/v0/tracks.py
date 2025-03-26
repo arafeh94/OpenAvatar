@@ -5,8 +5,7 @@ import numpy as np
 from aiortc import MediaStreamTrack
 from aiortc.mediastreams import AUDIO_PTIME
 from av import AudioFrame
-
-from core.plugins.text2speech import Audio
+from core.interfaces.va import Audio
 
 
 class AudioTrack(MediaStreamTrack):

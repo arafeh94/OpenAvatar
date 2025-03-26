@@ -2,14 +2,14 @@ import asyncio
 import logging
 from abc import ABC, abstractmethod
 import time
-from typing import Union, Callable
+from typing import Union
 
 import numpy as np
 from aiortc import MediaStreamTrack
 from aiortc.mediastreams import AUDIO_PTIME
 from av import AudioFrame
 
-from core.plugins.text2speech import Audio
+from core.interfaces.va import Audio
 
 
 class ASTrack(MediaStreamTrack, ABC):

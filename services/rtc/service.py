@@ -4,7 +4,7 @@ from aiortc import RTCSessionDescription
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from core.utils.token_generator import generate_token
+from core.tools.token_generator import generate_token
 from core.plugins.lip_sync.core.avatar import AvatarManager
 from core.plugins.lip_sync.core.models import AvatarWave2LipModel
 from core.plugins.text2speech import MicrosoftText2Speech

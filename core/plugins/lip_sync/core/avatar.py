@@ -6,10 +6,11 @@ from types import SimpleNamespace
 import numpy as np
 import torch
 
+from core.interfaces.va import Audio
 from manifest import Manifest
-from core.utils.text_split import TextSampler
+from core.tools.text_split import TextSampler
 from core.plugins.lip_sync.wave2lip.audio import melspectrogram
-from core.plugins.text2speech import Text2Speech, Audio
+from core.plugins.text2speech import Text2Speech
 from core.interfaces.base_ai import AIModel
 from core.tools.async_generator import NonBlockingLookaheadGenerator
 from core.tools.atomic_id import AtomicID
