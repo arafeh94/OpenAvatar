@@ -1,10 +1,82 @@
 <html lang="en">
 <head>
     <title>RTC Client</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background-color: #f0f4f8;
+            color: #333;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            width: 100%;
+            max-width: 95%;
+        }
+
+        .code-container {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-container code {
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 16px;
+        }
+
+        .send-btn {
+            background-color: #61dafb;
+            color: #282c34;
+            border: none;
+            padding: 12px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .send-btn:hover {
+            background-color: #4fa3d1;
+            transform: scale(1.05);
+        }
+
+        .send-btn:focus {
+            outline: none;
+        }
+
+        .card-header {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+    </style>
+
 </head>
 <body>
-<video id="video" autoplay playsinline></video>
-<audio id="audio" autoplay controls></audio>
+<div>
+    <video id="video" autoplay playsinline controls></video>
+    <audio id="audio" autoplay controls></audio>
+    <div style="padding: 10px"></div>
+    <div>
+        <button onclick="rtc.request()" class="send-btn">Connect</button>
+    </div>
+</div>
 <script>
     class Fetcher {
         constructor(base_url = null) {
@@ -42,11 +114,13 @@
             this.peer = new RTCPeerConnection();
             this.token = null;
             this.events = {};
+            this.channel = null;
             this.peer.ondatachannel = (event) => {
                 const channel = event.channel;
                 channel.onopen = this.onopen.bind(this);
                 channel.onclose = this.onclose.bind(this);
                 channel.onmessage = this.onmessage.bind(this);
+                this.channel = channel;
             }
             this.peer.ontrack = (event) => {
                 this.ontrack(event)
@@ -92,11 +166,9 @@
             this.events[event] = callback;
         }
 
-        async answer() {
-            const params = {'token': this.token, 'message': 'Hello samira, how are you today. I hope you are doing alright. As you know, there are a lot of things that you need to know about me.Hello samira, how are you today. I hope you are doing alright. As you know, there are a lot of things that you need to know about me.'}
-            await this.fetch('answer', params).then(response => response.json());
+        send_message(message) {
+            this.channel.send(message);
         }
-
     }
 
     rtc = new AvatarRTCClient()
@@ -110,7 +182,45 @@
         console.log(event);
     })
 </script>
-<button onclick="rtc.request()">Connect</button>
-<button onclick="rtc.answer()">Stream</button>
+
+<div style="padding: 10px"></div>
+<div class="card">
+    <div class="card-header">Small Avatar Request</div>
+    <div class="code-container">
+        <code>
+            <!--@formatter:off-->
+{"avatar":{"repeat":"hello samira how are you today", "persona":"lisa_casual_720_pl"}}
+            <!--@formatter:on-->
+        </code>
+        <button class="send-btn" onclick="avatar_send(this)">Send</button>
+    </div>
+</div>
+
+<div style="padding: 10px"></div>
+<div class="card">
+    <div class="card-header">Large Avatar Request</div>
+    <div class="code-container">
+        <code>
+            <!--@formatter:off-->
+{"avatar":{"repeat":"Healthcare in the United States is a complex and multifaceted system that combines public and private elements, presenting both opportunities and challenges for individuals, policymakers, and the economy. It is often described as one of the most advanced healthcare systems in the world in terms of medical technology, research, and access to specialized care. However, it is also marked by disparities in access, affordability, and outcomes, which contribute to ongoing debates about reform and improvement. The healthcare system is largely dominated by private insurance companies, with a significant portion of the population receiving coverage through employer-sponsored insurance plans. In addition to these private plans, there are public health programs like Medicaid and Medicare that provide coverage for low-income individuals and those over the age of 65, respectively. However, a substantial number of Americans remain uninsured or underinsured, which has led to concerns about the overall effectiveness and equity of the system.", "persona":"lisa_casual_720_pl"}}
+            <!--@formatter:on-->
+        </code>
+        <button class="send-btn" onclick="avatar_send(this)">Send</button>
+    </div>
+</div>
+
+<script>
+    function avatar_send(button) {
+        const codeText = button.previousElementSibling.textContent.trim();
+        console.log(codeText);
+        rtc.send_message(codeText);
+        button.textContent = 'Sending...';
+        setTimeout(() => {
+            button.textContent = 'Send';  // Reset text to 'Send' after 2 seconds
+        }, 1000);
+    }
+</script>
+
+
 </body>
 </html>

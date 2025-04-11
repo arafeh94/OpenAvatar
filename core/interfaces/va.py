@@ -1,3 +1,4 @@
+import numpy as np
 import soundfile as sf
 import io
 from core.interfaces.base_convertable import Convertable
@@ -15,6 +16,9 @@ class Audio:
 
     def __len__(self):
         return len(self.samples)
+
+    def extends(self, audio: 'Audio'):
+        self.samples = np.append(self.samples, audio.samples)
 
     def clip(self, start, end):
         return Audio(self.samples[start:end], self.sampling_rate)

@@ -4,8 +4,9 @@ import time
 
 
 class NonBlockingLookaheadGenerator:
-    def __init__(self, gen):
+    def __init__(self, gen, id=None):
         self._gen = gen
+        self.id = id
         self._queue = queue.Queue(maxsize=1)
         self._done = False
         self._lock = threading.Lock()
@@ -14,7 +15,10 @@ class NonBlockingLookaheadGenerator:
 
     def _prefetch(self):
         try:
+            timer = time.time()
+            print('prefetching id: {} - started'.format(self.id))
             next_value = next(self._gen)
+            print('prefetching id: {} - finished in {}s'.format(self.id, time.time() - timer))
             self._queue.put(next_value)
         except StopIteration:
             self._queue.put(None)

@@ -1,8 +1,8 @@
 import asyncio
 import fractions
 import logging
+import queue
 from abc import ABC, abstractmethod
-from asyncio import Queue
 from typing import Tuple, Union, Iterator
 import time
 
@@ -41,9 +41,8 @@ class VSTrack(MediaStreamTrack, ABC):
         return self._timestamp, self.time_base
 
     def reset_timestamp(self):
-        if hasattr(self, "_timestamp"):
-            del self._start
-            del self._timestamp
+        del self._start
+        del self._timestamp
 
     @abstractmethod
     async def next_frame(self) -> Frame:
@@ -65,16 +64,22 @@ class VideoStream(VSTrack):
 
     def __init__(self):
         super().__init__()
+        self._event = asyncio.Event()
         self._frame_buffer = None
-        self.buffer_queue: Queue[Iterator] = Queue()
+        self.buffer_queue: queue.Queue[Iterator] = queue.Queue()
 
     def reset(self):
         self._frame_buffer = None
+        self.buffer_queue.empty()
         self.reset_timestamp()
+        self._event.clear()
 
     async def next_frame(self) -> Frame:
+        if self.buffer_queue.empty():
+            await self._event.wait()
+
         if self._frame_buffer is None:
-            self._frame_buffer = await self.buffer_queue.get()
+            self._frame_buffer = self.buffer_queue.get()
 
         try:
             frame = next(self._frame_buffer)
@@ -84,5 +89,6 @@ class VideoStream(VSTrack):
 
         return frame
 
-    async def stream(self, frames_buffer):
-        await self.buffer_queue.put(frames_buffer)
+    def stream(self, frames_buffer):
+        self.buffer_queue.put(frames_buffer)
+        self._event.set()

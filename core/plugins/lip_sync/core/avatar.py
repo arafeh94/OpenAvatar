@@ -1,6 +1,7 @@
 import logging
 import os
 import pickle
+import threading
 from types import SimpleNamespace
 
 import numpy as np
@@ -192,8 +193,8 @@ class Avatar(object):
     def lip_synced_frame_generator(self, audio: Audio):
         mel = melspectrogram(audio.samples)
         mel_chunks = self._get_mel_chunks(mel)
-        frame_gen = NonBlockingLookaheadGenerator(self._base_frame_generator(mel_chunks))
-        return NonBlockingLookaheadGenerator(self._lip_sync_generator(frame_gen))
+        frame_gen = NonBlockingLookaheadGenerator(self._base_frame_generator(mel_chunks), 'mel_chunks')
+        return NonBlockingLookaheadGenerator(self._lip_sync_generator(frame_gen), 'lip_sync_generator')
 
     def get_idle_stream(self):
         return self._get_avatar_video()
@@ -215,11 +216,11 @@ class Avatar(object):
 
     def frame_buffer(self, audio: Audio, **kwargs):
         self.update_args(kwargs)
-        return NonBlockingLookaheadGenerator(self._frame_buffer(audio))
+        return NonBlockingLookaheadGenerator(self._frame_buffer(audio), 'tts')
 
     def stream(self, audio: Audio, **kwargs):
         self.update_args(kwargs)
-        return AvatarBuffer(NonBlockingLookaheadGenerator(self._frame_buffer(audio)))
+        return AvatarBuffer(NonBlockingLookaheadGenerator(self._frame_buffer(audio), 'frame_tts'))
 
     def tts_buffer(self, tts, text, **kwargs):
         return AvatarTTS(self, tts).buffer(text, **kwargs)
@@ -245,7 +246,7 @@ class AvatarTTS:
             yield self.avatar.stream(audio, **kwargs), audio
 
     def buffer(self, text, **kwargs):
-        return NonBlockingLookaheadGenerator(self.tts(text, **kwargs))
+        return NonBlockingLookaheadGenerator(self.tts(text, **kwargs), 'tts_buffer')
 
 
 class AvatarManager:

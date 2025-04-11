@@ -1,9 +1,10 @@
 import asyncio
+import fractions
 import logging
+import queue
 from abc import ABC, abstractmethod
 import time
-from asyncio import Queue
-from typing import Union
+from typing import Union, Iterator
 
 import numpy as np
 from aiortc import MediaStreamTrack
@@ -13,30 +14,21 @@ from av import AudioFrame
 from core.interfaces.va import Audio
 
 
-# noinspection PyTypeChecker
 class ASTrack(MediaStreamTrack, ABC):
     kind = "audio"
     _start: float
     _timestamp: int
 
-    def __init__(self):
-        super().__init__()
-        self.last_time_stamp = 0
-
     def reset_timestamp(self):
-        if hasattr(self, "_timestamp"):
-            del self._start
-            del self._timestamp
+        del self._start
+        del self._timestamp
 
     async def recv(self):
         av_frame = await self.next_frame()
 
         if hasattr(self, "_timestamp"):
             self._timestamp += av_frame.samples
-            ttst = time.time()
-            wait = self._start + (self._timestamp / av_frame.sample_rate) - ttst
-            wait = min(max(0, wait), 0.03)
-            # print(wait)
+            wait = self._start + (self._timestamp / av_frame.sample_rate) - time.time()
             await asyncio.sleep(wait)
         else:
             self._start = time.time()
@@ -46,7 +38,7 @@ class ASTrack(MediaStreamTrack, ABC):
         return av_frame
 
     @abstractmethod
-    async def next_frame(self) -> AudioFrame:
+    async def next_frame(self) -> Union[AudioFrame]:
         pass
 
 
@@ -58,11 +50,22 @@ class AudioFrameCreator(ABC):
 
 class MonoFrame(AudioFrameCreator):
 
+    def __init__(self):
+        self.pts = 0
+        self.time_based = None
+
     def av_frame(self, samples, sample_rate) -> AudioFrame:
+        if self.time_based is None:
+            self.time_based = fractions.Fraction(1, sample_rate)
+
         block = (np.array(samples) / max(1, np.max(np.abs(samples))) * 32767).astype(np.int16)
         frame = AudioFrame.from_ndarray(block.reshape(1, -1), format='s16', layout='mono')
         frame.sample_rate = sample_rate
 
+        self.pts += len(samples)
+
+        frame.pts = self.pts
+        frame.time_base = self.time_based
         return frame
 
 
@@ -74,17 +77,24 @@ class AudioStream(ASTrack):
         self._audio: Union[Audio, None] = None
         self._current_sample = 0
         self._frame_creator = frame_creator
+        self._event = asyncio.Event()
         self.logger = logging.getLogger("AudioStream")
-        self.buffer_queue: Queue[Audio] = Queue()
+        self.buffer_queue: queue.Queue[Audio] = queue.Queue()
 
     def reset(self):
         self._current_sample = 0
         self._audio = None
+        self.buffer_queue.empty()
+        self._event.clear()
         self.reset_timestamp()
 
     async def next_frame(self) -> Union[AudioFrame]:
         if self._audio is None:
-            self._audio = await self.buffer_queue.get()
+            await self._event.wait()
+
+        if self._audio is None:
+            self._audio = self.buffer_queue.get()
+            print("rest of audio queue size: {}".format(self.buffer_queue.qsize()))
 
         sample_size = int(AUDIO_PTIME * self._audio.sampling_rate)
         end_sample = self._current_sample + sample_size
@@ -94,7 +104,6 @@ class AudioStream(ASTrack):
 
         if end_sample >= len(self._audio.samples):
             self._audio = None
-            self._current_sample = 0
             return await self.next_frame()
 
         samples = self._audio.samples[self._current_sample:end_sample]
@@ -102,5 +111,6 @@ class AudioStream(ASTrack):
 
         return self._frame_creator.av_frame(samples, self._audio.sampling_rate)
 
-    async def stream(self, audio: Audio):
-        await self.buffer_queue.put(audio)
+    def stream(self, audio: Audio):
+        self.buffer_queue.put(audio)
+        self._event.set()

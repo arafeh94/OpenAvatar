@@ -5,10 +5,8 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from core.tools.token_generator import generate_token
-from core.plugins.lip_sync.core.avatar import AvatarManager
-from core.plugins.lip_sync.core.models import AvatarWave2LipModel
-from core.plugins.text2speech import MicrosoftText2Speech
 from core.tools import utils
+from services.rtc.context import AppContext
 from services.rtc.src.peer import ServerPeer
 
 utils.enable_logging()
@@ -21,28 +19,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-peers: dict[str, 'ServerPeer'] = {}
-avatar_manager = AvatarManager(AvatarWave2LipModel(), MicrosoftText2Speech())
-
 
 def on_peer_close(token):
-    global peers
-    del peers[token]
+    del AppContext().peers[token]
+    print("peer {} closed".format(token))
 
 
 @app.get("/register")
 async def register():
     token = generate_token()
-    server = ServerPeer(token, on_peer_close, avatar_manager)
+    server = ServerPeer(token, on_peer_close)
     sdp = await server.offer()
-    peers[token] = server
+    AppContext().peers[token] = server
     return {"sdp": sdp, 'token': token}
 
 
 @app.get("/confirm")
 async def confirm(token, sdp):
-    if token in peers.keys():
-        server = peers[token]
+    if token in AppContext().peers.keys():
+        server = AppContext().peers[token]
         client_sdp = json.loads(sdp)
         client_sdp = RTCSessionDescription(client_sdp['sdp'], client_sdp['type'])
         await server.accept(client_sdp)
@@ -52,17 +47,8 @@ async def confirm(token, sdp):
 
 @app.get("/broadcast")
 async def broadcast(message):
-    for peer in peers.values():
+    for peer in AppContext().peers.values():
         peer.send_message(message)
-    return {"status": "accepted"}
-
-
-@app.get("/answer")
-async def answer(message, token):
-    if token not in peers.keys():
-        return {"status": "not registered"}
-    peer = peers[token]
-    peer.stream(message, 'lisa_casual_720_pl')
     return {"status": "accepted"}
 
 
