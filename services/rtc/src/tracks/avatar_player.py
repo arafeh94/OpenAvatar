@@ -9,11 +9,7 @@ from aiortc.contrib.media import logger
 from aiortc.mediastreams import AUDIO_PTIME, MediaStreamTrack, MediaStreamError
 from av import AudioFrame, VideoFrame
 from av.frame import Frame
-from fsspec import Callback
-
-from core.interfaces.va import Audio
 from core.plugins.lip_sync.core.avatar_extentions import AvatarVideoDecoder
-from core.tools import utils
 
 CLOCK_RATE = 90_000
 FPS = 24
