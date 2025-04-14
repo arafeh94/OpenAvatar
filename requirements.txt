@@ -1,0 +1,17 @@
+opencv-python
+numpy
+fastapi
+torch
+onnx2torch
+tqdm
+librosa
+scipy
+transformers
+datasets
+soundfile
+av
+aiortc
+requests
+uvicorn
+starlette
+pydantic

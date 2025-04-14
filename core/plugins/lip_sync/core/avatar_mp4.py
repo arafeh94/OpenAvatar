@@ -5,10 +5,8 @@ import platform
 import subprocess
 import os
 
-from moviepy import AudioFileClip, ImageSequenceClip
-
+from core.interfaces.va import Audio
 from core.plugins.lip_sync.core.avatar import Avatar
-from core.plugins.text2speech import Audio
 
 
 # noinspection PyUnresolvedReferences
@@ -32,11 +30,13 @@ def video_writer(avatar, audio_path, output):
 
 
 def video_buffer(avatar: Avatar, audio_path, **kwargs):
+    from moviepy import AudioFileClip, ImageSequenceClip
+
     avatar.update_args(kwargs)
     audio = Audio.load(audio_path)
     audio_clip = AudioFileClip(audio_path)
     audio_time = avatar.args.buffer_size / avatar.args.fps
-    for idx, fr24 in enumerate(avatar.frame_buffer(audio)):
+    for idx, fr24 in enumerate(avatar.aframe_buffer(audio)):
         video_clip = ImageSequenceClip([cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) for frame in fr24], fps=24)
         start_time = idx * audio_time
         end_time = (idx + 1) * audio_time

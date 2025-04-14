@@ -1,4 +1,4 @@
-from core.plugins.lip_sync.core.avatar import AvatarManager
+from core.plugins.lip_sync.core.avatar_extentions import AvatarManager
 from core.plugins.lip_sync.core.models import AvatarWave2LipModel
 from core.plugins.text2speech import MicrosoftText2Speech
 
@@ -12,11 +12,8 @@ class AppContext:
             cls._instance._initialized = False
         return cls._instance
 
-    # noinspection PyUnresolvedReferences
     def __init__(self):
         if not self._initialized:
-            self.peers: dict[str, 'ServerPeer'] = {}
+            self.peers = {}
             self.avatar_manager = AvatarManager(AvatarWave2LipModel(), MicrosoftText2Speech())
             self._initialized = True
-
-

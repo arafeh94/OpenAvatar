@@ -4,8 +4,9 @@ import inspect
 from typing import Callable
 from aiortc import RTCPeerConnection
 from services.rtc.src.agent import Requests
-from services.rtc.src.audio_track import AudioStream
-from services.rtc.src.video_track import VideoStream
+from services.rtc.src.tracks.audio_track import AudioStream
+from services.rtc.src.tracks.avatar_player import AvatarMediaPlayer
+from services.rtc.src.tracks.video_track import VideoStream
 
 
 class ServerPeer:
@@ -17,11 +18,9 @@ class ServerPeer:
 
         self.channel = self.peer.createDataChannel("chat")
 
-        self.video_track = VideoStream()
-        self.peer.addTrack(self.video_track)
-
-        self.audio_track = AudioStream(AudioStream.MONO)
-        self.peer.addTrack(self.audio_track)
+        self.player = AvatarMediaPlayer()
+        self.peer.addTrack(self.player.video)
+        self.peer.addTrack(self.player.audio)
 
         self.register_events()
 

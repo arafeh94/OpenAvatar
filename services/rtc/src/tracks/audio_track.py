@@ -36,7 +36,6 @@ class ASTrack(MediaStreamTrack, ABC):
             ttst = time.time()
             wait = self._start + (self._timestamp / av_frame.sample_rate) - ttst
             wait = min(max(0, wait), 0.03)
-            # print(wait)
             await asyncio.sleep(wait)
         else:
             self._start = time.time()

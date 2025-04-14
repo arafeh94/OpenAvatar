@@ -1,10 +1,7 @@
-import numpy as np
-
 from core.interfaces.va import Audio
 from core.plugins.lip_sync.core.avatar import AvatarManager
 from core.plugins.lip_sync.core.models import AvatarWave2LipModel
 from core.plugins.text2speech import MicrosoftText2Speech
-import cv2
 import time
 from core.tools.file_tools import VideoWriter
 

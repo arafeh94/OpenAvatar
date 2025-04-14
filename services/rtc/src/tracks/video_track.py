@@ -32,7 +32,9 @@ class VSTrack(MediaStreamTrack, ABC):
 
         if hasattr(self, "_timestamp"):
             self._timestamp += int(self.p_time * self.clock_rate)
-            wait = self._start + (self._timestamp / self.clock_rate) - time.time()
+            current_time = time.time()
+            wait = self._start + (self._timestamp / self.clock_rate) - current_time
+            print("wait: {}, start: {}, current: {}".format(wait, self._timestamp, current_time))
             await asyncio.sleep(wait)
         else:
             self._start = time.time()

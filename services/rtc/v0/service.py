@@ -20,7 +20,7 @@ from core.plugins.lip_sync.core.avatar import AvatarManager
 from core.plugins.lip_sync.core.models import AvatarWave2LipModel
 from core.plugins.text2speech import MicrosoftText2Speech
 from core.tools import utils
-from services.rtc.src.video_track import VideoStream
+from services.rtc.src.tracks.video_track import VideoStream
 
 utils.enable_logging()
 # Create an instance of FastAPI

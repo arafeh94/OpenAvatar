@@ -5,9 +5,9 @@ def split_text(text, max_length=400):
     # Regular expression to split the text into sentences
     sentences = re.split(r'(?<=[.!?]) +', text)
 
-    current_chunk = ""
+    current_chunk = sentences[0]
 
-    for sentence in sentences:
+    for sentence in sentences[1:]:
         if len(current_chunk) + len(sentence) + 1 <= max_length:
             if current_chunk:
                 current_chunk += " " + sentence
@@ -29,4 +29,5 @@ class TextSampler:
         return self
 
     def __next__(self):
-        return next(self.text_gen, None)
+        val = next(self.text_gen, None)
+        return val

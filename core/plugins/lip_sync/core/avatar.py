@@ -3,11 +3,13 @@ import os
 import pickle
 import threading
 from types import SimpleNamespace
+from typing import Iterator, List, Tuple, Generator, Union, Any
 
 import numpy as np
 import torch
 
 from core.interfaces.va import Audio
+from core.tools.utils import SafeValue
 from manifest import Manifest
 from core.tools.text_split import TextSampler
 from core.plugins.lip_sync.wave2lip.audio import melspectrogram
@@ -75,6 +77,7 @@ class Avatar(object):
         self.face_detection_results = None
         self.video_frames = None
         self.id = AtomicID().fetch()
+        self.frame_offset = SafeValue(0)
 
     def init(self):
         self.face_detection_results = self._get_avatar_face_detection_results()
@@ -131,14 +134,15 @@ class Avatar(object):
             i += 1
         return mel_chunks
 
-    def _base_frame_generator(self, mels):
+    def _base_frame_generator(self, mels, starting_frame):
         face_det_results = self._get_avatar_face_detection_results()
         frames = self._get_avatar_videos_frames()
 
         img_batch, mel_batch, frame_batch, coords_batch = [], [], [], []
-
         for i, m in enumerate(mels):
-            idx = 0 if self.args.static else i % len(frames)
+            # TODO: starting frame have an issue with the non blocking lookahead generator. starting two thread at the same time we can't track the next audio starting frame
+            idx = 0 if self.args.static else (i + starting_frame) % len(frames)
+            print(idx, starting_frame)
             frame_to_save = frames[idx].copy()
             face, coords = face_det_results[idx].copy()
 
@@ -193,7 +197,8 @@ class Avatar(object):
     def lip_synced_frame_generator(self, audio: Audio):
         mel = melspectrogram(audio.samples)
         mel_chunks = self._get_mel_chunks(mel)
-        frame_gen = NonBlockingLookaheadGenerator(self._base_frame_generator(mel_chunks), 'mel_chunks')
+        frame_gen = self._base_frame_generator(mel_chunks, self.frame_offset.value)
+        self.frame_offset.value = self.frame_offset.value + len(mel_chunks)
         return NonBlockingLookaheadGenerator(self._lip_sync_generator(frame_gen), 'lip_sync_generator')
 
     def get_idle_stream(self):
@@ -214,87 +219,34 @@ class Avatar(object):
 
         return frame_buffer_generator()
 
-    def frame_buffer(self, audio: Audio, **kwargs):
+    def aframe_buffer(self, audio: Audio, **kwargs):
         self.update_args(kwargs)
         return NonBlockingLookaheadGenerator(self._frame_buffer(audio), 'tts')
 
     def stream(self, audio: Audio, **kwargs):
         self.update_args(kwargs)
-        return AvatarBuffer(NonBlockingLookaheadGenerator(self._frame_buffer(audio), 'frame_tts'))
-
-    def tts_buffer(self, tts, text, **kwargs):
-        return AvatarTTS(self, tts).buffer(text, **kwargs)
+        return Avatar.AvatarBuffer(NonBlockingLookaheadGenerator(self._frame_buffer(audio), 'frame_tts'))
 
     def update_args(self, new_args):
         if new_args:
             self.args = SimpleNamespace(**{**vars(self.args), **new_args})
 
+    class AvatarBuffer:
+        def __init__(self, frame_buffer):
+            self._frame_buffer = frame_buffer
+            self._frame_stream = np.array([])
+            self._frame_index = 0
 
-class AvatarTTS:
-    def __init__(self, avatar: Avatar, tts_convertor: Text2Speech):
-        self.tts_convertor = tts_convertor
-        self.avatar = avatar
+        def __iter__(self):
+            return self
 
-    def tts(self, text, **kwargs):
-        max_batch_size = kwargs.get('max_text_sample', Manifest().query('tts.max_text_sample', 200))
-        text_sampler = TextSampler(text, max_batch_size)
-        while True:
-            speech_text = next(text_sampler)
-            if speech_text is None:
-                break
-            audio = self.tts_convertor.convert(speech_text, **kwargs).as_audio()
-            yield self.avatar.stream(audio, **kwargs), audio
+        def __next__(self):
+            try:
+                if not self._frame_stream.any() or self._frame_index >= len(self._frame_stream):
+                    self._frame_index = 0
+                    self._frame_stream = next(self._frame_buffer)
+            except StopIteration:
+                raise StopIteration
 
-    def buffer(self, text, **kwargs):
-        return NonBlockingLookaheadGenerator(self.tts(text, **kwargs), 'tts_buffer')
-
-
-class AvatarManager:
-    def __init__(self, avatar_model, tts_convertor: Text2Speech):
-        self.avatar_cache = {}
-        self.avatar_model = avatar_model
-        self.tts_convertor = tts_convertor
-
-    def get_avatar(self, persona):
-        if persona not in self.avatar_cache:
-            avatar = Avatar(persona, self.avatar_model)
-            avatar.init()
-            self.avatar_cache[persona] = avatar
-        else:
-            avatar = self.avatar_cache[persona]
-        return avatar
-
-    def tts_buffer(self, persona, text, **kwargs):
-        """
-        Return a generator where each yield return the frames and the audio assigned to these frames.
-        Args:
-            persona: avatar files
-            text: the text to repeat (convert to speach and generate lip-synced frames)
-            **kwargs: additional arguments passed to tts
-                voice_id=7406
-
-        Returns: yield frames, audio
-
-        """
-        return self.get_avatar(persona).tts_buffer(self.tts_convertor, text, **kwargs)
-
-
-class AvatarBuffer:
-    def __init__(self, frame_buffer):
-        self._frame_buffer = frame_buffer
-        self._frame_stream = np.array([])
-        self._frame_index = 0
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        try:
-            if not self._frame_stream.any() or self._frame_index >= len(self._frame_stream):
-                self._frame_index = 0
-                self._frame_stream = next(self._frame_buffer)
-        except StopIteration:
-            raise StopIteration
-
-        self._frame_index += 1
-        return self._frame_stream[self._frame_index - 1]
+            self._frame_index += 1
+            return self._frame_stream[self._frame_index - 1]

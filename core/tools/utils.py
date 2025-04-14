@@ -1,5 +1,24 @@
 import importlib
 import logging
+import threading
+
+import numpy as np
+
+
+class SafeValue:
+    def __init__(self, initial_value=None):
+        self._lock = threading.Lock()
+        self._value = initial_value
+
+    @property
+    def value(self):
+        with self._lock:
+            return self._value
+
+    @value.setter
+    def value(self, new_value):
+        with self._lock:
+            self._value = new_value
 
 
 def get_class_instance(class_path: str, *args, **kwargs):
@@ -14,3 +33,23 @@ def enable_logging(file_name=None, level=logging.INFO):
         logging.basicConfig(filename=file_name, filemode='w', datefmt='%H:%M:%S', level=level)
     else:
         logging.basicConfig(level=level)
+
+
+def info(logger, content, **args):
+    if 'log' in args and args['log']:
+        logger.info(content)
+
+
+def split_ones(arr, precision=10):
+    whole = int(arr)
+    fraction = round(arr - whole, precision)
+    arr = [1] * whole
+    if fraction > 0:
+        arr.append(fraction)
+    return np.array(arr)
+
+
+def create_batches(arr, batch_size):
+    num_batches = len(arr) // batch_size + (1 if len(arr) % batch_size != 0 else 0)
+    batches = [arr[i * batch_size:(i + 1) * batch_size] for i in range(num_batches)]
+    return batches

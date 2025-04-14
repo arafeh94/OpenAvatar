@@ -15,10 +15,7 @@ class NonBlockingLookaheadGenerator:
 
     def _prefetch(self):
         try:
-            timer = time.time()
-            print('prefetching id: {} - started'.format(self.id))
             next_value = next(self._gen)
-            print('prefetching id: {} - finished in {}s'.format(self.id, time.time() - timer))
             self._queue.put(next_value)
         except StopIteration:
             self._queue.put(None)
