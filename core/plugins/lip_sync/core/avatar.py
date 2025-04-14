@@ -142,7 +142,6 @@ class Avatar(object):
         for i, m in enumerate(mels):
             # TODO: starting frame have an issue with the non blocking lookahead generator. starting two thread at the same time we can't track the next audio starting frame
             idx = 0 if self.args.static else (i + starting_frame) % len(frames)
-            print(idx, starting_frame)
             frame_to_save = frames[idx].copy()
             face, coords = face_det_results[idx].copy()
 
@@ -203,6 +202,9 @@ class Avatar(object):
 
     def get_idle_stream(self):
         return self._get_avatar_video()
+
+    def get_frame(self, idx):
+        return self.video_frames[idx % len(self.video_frames)]
 
     def _frame_buffer(self, audio: Audio):
         def frame_buffer_generator():

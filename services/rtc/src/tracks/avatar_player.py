@@ -1,17 +1,20 @@
 import asyncio
 import time
 import threading
-from queue import Queue
+from asyncio import QueueEmpty
+from queue import Queue, Empty
 from typing import Optional, Callable
 from aiortc.contrib.media import logger
-from aiortc.mediastreams import MediaStreamTrack, MediaStreamError
+from aiortc.mediastreams import MediaStreamTrack, MediaStreamError, AUDIO_PTIME
 from av import VideoFrame
 from av.frame import Frame
+
 from core.plugins.lip_sync.core.avatar_extentions import AvatarVideoDecoder
+from services.rtc.context import AppContext
 
 
 class PlayerStreamTrack(MediaStreamTrack):
-    def __init__(self, kind: str, idle_frame: Callable[[int], Frame] = None) -> None:
+    def __init__(self, kind: str, idle_frame: Callable[[], Frame]) -> None:
         super().__init__()
         self.kind = kind
         self._queue: asyncio.Queue[Frame] = asyncio.Queue()
@@ -32,8 +35,11 @@ class PlayerStreamTrack(MediaStreamTrack):
     async def recv(self) -> Frame:
         if self.readyState != "live":
             raise MediaStreamError
+        try:
+            data = self._queue.get_nowait()
+        except QueueEmpty:
+            data = self.idle_frame()
 
-        data = await self._queue.get()
         if data is None:
             self.stop()
             raise MediaStreamError
@@ -43,11 +49,26 @@ class PlayerStreamTrack(MediaStreamTrack):
         data_time = data.time
         self.pts = data.pts
 
+        current_time = time.time()
+
         if self._start is None:
-            self._start = time.time() - data_time
+            self._start = current_time
+            print(
+                f"start_time:{self._start:.4f},\t"
+                f"current_time:{current_time:.4f},\t"
+                f"data_time:{round(data_time, 4):.4f}s,\t"
+                f"wait: {round(0, 4):+.4f}s,\t"
+                f"data: {data}"
+            )
         else:
-            current_time = time.time()
             wait = self._start + data_time - current_time
+            print(
+                f"start_time:{self._start:.4f},\t"
+                f"current_time:{current_time:.4f},\t"
+                f"data_time:{round(data_time, 4):.4f}s,\t"
+                f"wait: {round(wait, 4):+.4f}s,\t"
+                f"{data}"
+            )
             await asyncio.sleep(wait)
 
         return data
@@ -65,23 +86,46 @@ def avatar_worker_decode(
         while True:
             try:
                 video, audio, text = next(buffer)
-                container = AvatarVideoDecoder.decode((video, audio))
-                for frame in container:
-                    if isinstance(frame, VideoFrame):
-                        asyncio.run_coroutine_threadsafe(video_track.publish(frame), loop)
-                    else:
-                        asyncio.run_coroutine_threadsafe(audio_track.publish(frame), loop)
+                publish(video, audio, video_track, audio_track, loop, timestamp=True)
             except StopIteration:
-                avatar_worker_decode(loop, buffer_queue, video_track, audio_track, quit_event)
+                break
+
+
+def publish(video, audio, video_track, audio_track, loop, timestamp):
+    AVD = AvatarVideoDecoder
+    container = AVD.decode((video, audio), timestamp)
+    for frame in container:
+        if isinstance(frame, VideoFrame):
+            asyncio.run_coroutine_threadsafe(video_track.publish(frame), loop)
+        else:
+            asyncio.run_coroutine_threadsafe(audio_track.publish(frame), loop)
+
+
+class IdleFrames:
+    @staticmethod
+    def audio() -> Callable[[], Frame]:
+        def inner() -> Frame:
+            return AvatarVideoDecoder.silence(16000, AUDIO_PTIME)[0]
+
+        return inner
+
+    @staticmethod
+    def video(peer_id, persona) -> Callable[[], Frame]:
+        def inner() -> Frame:
+            return AvatarVideoDecoder.idle(persona, AppContext().idle_frame(peer_id))[0]
+
+        return inner
 
 
 class AvatarMediaPlayer:
-    def __init__(self) -> None:
+    def __init__(self, peer_id, persona) -> None:
         self.__thread: Optional[threading.Thread] = None
         self.__thread_quit: Optional[threading.Event] = None
-        self.__audio: PlayerStreamTrack = PlayerStreamTrack("audio")
-        self.__video: PlayerStreamTrack = PlayerStreamTrack("video")
+        self.__audio: PlayerStreamTrack = PlayerStreamTrack("audio", IdleFrames.audio())
+        self.__video: PlayerStreamTrack = PlayerStreamTrack("video", IdleFrames.video(peer_id, persona))
         self.__buffer_queue: Queue[Frame] = Queue()
+        self.__persona = persona
+        self.__peer_id = peer_id
 
     @property
     def audio(self) -> MediaStreamTrack:
@@ -98,7 +142,8 @@ class AvatarMediaPlayer:
         return self.__video
 
     def start(self, buffer) -> None:
-        self.__buffer_queue.put(buffer)
+        if buffer:
+            self.__buffer_queue.put(buffer)
         if self.__thread is None:
             self.__log_debug("Starting worker thread")
             self.__thread_quit = threading.Event()
@@ -136,13 +181,13 @@ class MediaSink:
     """
 
     def __init__(self, *tracks: [MediaStreamTrack]):
-        self.tracks = tracks
+        self.__tracks = tracks
         self._stop_event = asyncio.Event()
 
     async def start(self):
         try:
             while not self._stop_event.is_set():
-                for track in self.tracks:
+                for track in self.__tracks:
                     frame = await track.recv()
                     self._process_frame(frame)
 

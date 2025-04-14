@@ -37,10 +37,11 @@ async def register():
 @app.get("/confirm")
 async def confirm(token, sdp):
     if token in AppContext().peers.keys():
-        server = AppContext().peers[token]
+        server: ServerPeer = AppContext().peers[token]
         client_sdp = json.loads(sdp)
         client_sdp = RTCSessionDescription(client_sdp['sdp'], client_sdp['type'])
         await server.accept(client_sdp)
+        server.player.start(None)
         return {"status": "accepted"}
     return {"status": "not registered"}
 

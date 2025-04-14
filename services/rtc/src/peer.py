@@ -15,7 +15,7 @@ class ServerPeer:
         self.__peer = RTCPeerConnection()
         self.__channel = self.peer.createDataChannel("chat")
 
-        self.__player = AvatarMediaPlayer()
+        self.__player = AvatarMediaPlayer(token, "lisa_casual_720_pl")
         self.__peer.addTrack(self.player.video)
         self.__peer.addTrack(self.player.audio)
 

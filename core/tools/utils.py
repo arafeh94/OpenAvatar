@@ -53,3 +53,8 @@ def create_batches(arr, batch_size):
     num_batches = len(arr) // batch_size + (1 if len(arr) % batch_size != 0 else 0)
     batches = [arr[i * batch_size:(i + 1) * batch_size] for i in range(num_batches)]
     return batches
+
+
+def sec(t):
+    millis = round((t - int(t)) * 1000, 4)
+    return f"{millis:.4f}"
