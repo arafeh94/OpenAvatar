@@ -2,7 +2,8 @@
   "rtc": {
     "agents": {
       "avatar": "services.rtc.src.agents.avatar_agent.AvatarAgent",
-      "fake": "services.rtc.src.agents.fake_agent.FakeAgent"
+      "fake": "services.rtc.src.agents.fake_agent.FakeAgent",
+      "llm": "services.rtc.src.agents.llm_agent.LLMAgent"
     }
   },
   "_comment": "manifest"

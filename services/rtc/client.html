@@ -2,24 +2,29 @@
 <head>
     <title>RTC Client</title>
     <style>
+        html {
+            color-scheme: dark !important;
+        }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 40px;
-            background-color: #f0f4f8;
-            color: #333;
+            background-color: #2c2f30;
+            color: #fcf7f1;
             justify-content: center;
             align-items: center;
             height: 100vh;
         }
 
         .card {
-            background-color: white;
+            background-color: #252627;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             padding: 25px;
             width: 100%;
             max-width: 95%;
+            display: inline-block;
+            margin: 10px;
         }
 
         .code-container {
@@ -40,8 +45,8 @@
         }
 
         .send-btn {
-            background-color: #61dafb;
-            color: #282c34;
+            background-color: #0082a1;
+            color: #e5dfd1;
             border: none;
             padding: 12px 20px;
             font-size: 14px;
@@ -62,7 +67,7 @@
         .card-header {
             font-size: 20px;
             font-weight: bold;
-            color: #333;
+            color: whitesmoke;
             margin-bottom: 15px;
         }
     </style>
@@ -74,7 +79,7 @@
     <audio id="audio" autoplay controls></audio>
     <div style="padding: 10px"></div>
     <div>
-        <button onclick="rtc.request()" class="send-btn">Connect</button>
+        <button onclick="rtc.register()" class="send-btn">Connect</button>
     </div>
 </div>
 <script>
@@ -130,7 +135,7 @@
             this.audio = document.getElementById("audio");
         }
 
-        async request() {
+        async register() {
             const response = await this.fetch('register').then(response => response.json());
             this.token = response.token;
             await this.peer.setRemoteDescription(response.sdp);
@@ -177,15 +182,15 @@
     })
     rtc.on(AvatarRTCClient.MESSAGE, (message) => {
         console.log(message);
+        document.getElementById('llm-response').innerHTML = message;
     })
     rtc.on(AvatarRTCClient.TRACK, (event) => {
         console.log(event);
     })
 </script>
 
-<div style="padding: 10px"></div>
-<div class="card">
-    <div class="card-header">Small Avatar Request</div>
+<div class="card" style="max-width: 46.1%">
+    <div class="card-header">Short Avatar Repeat Request</div>
     <div class="code-container">
         <code>
             <!--@formatter:off-->
@@ -196,9 +201,27 @@
     </div>
 </div>
 
-<div style="padding: 10px"></div>
+<div class="card" style="max-width: 46.1%">
+    <div class="card-header">LLM Request</div>
+    <div class="code-container">
+        <code>
+            <!--@formatter:off-->
+{"llm":{"query":"what is search engine?", "history":[]}}
+            <!--@formatter:on-->
+        </code>
+        <button class="send-btn" onclick="avatar_send(this)">Send</button>
+    </div>
+</div>
+
+<div class="card" style="max-width: 95%;">
+    <div class="card-header">LLM Response</div>
+    <div class="code-container">
+        <div id="llm-response"></div>
+    </div>
+</div>
+
 <div class="card">
-    <div class="card-header">Large Avatar Request</div>
+    <div class="card-header">Long Avatar Repeat Request</div>
     <div class="code-container">
         <code>
             <!--@formatter:off-->

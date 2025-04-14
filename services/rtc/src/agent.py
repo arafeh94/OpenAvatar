@@ -7,9 +7,9 @@ from easydict import EasyDict
 
 from core.tools import utils
 from manifest import Manifest
+from services.rtc.src.typing import ServerPeer
 
 
-# noinspection PyUnresolvedReferences
 class AgentRequest:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)

@@ -1,18 +1,13 @@
 import asyncio
-import copy
-import fractions, time
+import time
 import threading
-from queue import Queue, Empty
+from queue import Queue
 from typing import Optional, Callable
-import numpy as np
 from aiortc.contrib.media import logger
-from aiortc.mediastreams import AUDIO_PTIME, MediaStreamTrack, MediaStreamError
-from av import AudioFrame, VideoFrame
+from aiortc.mediastreams import MediaStreamTrack, MediaStreamError
+from av import VideoFrame
 from av.frame import Frame
 from core.plugins.lip_sync.core.avatar_extentions import AvatarVideoDecoder
-
-CLOCK_RATE = 90_000
-FPS = 24
 
 
 class PlayerStreamTrack(MediaStreamTrack):
@@ -28,7 +23,7 @@ class PlayerStreamTrack(MediaStreamTrack):
         if self.kind == "audio":
             pts = int(self.pts + frame.samples)
         else:
-            pts = int(self.pts + CLOCK_RATE / FPS)
+            pts = int(self.pts + AvatarVideoDecoder.CLOCK_RATE / AvatarVideoDecoder.FPS)
         return pts
 
     async def publish(self, frame: Frame):
@@ -139,6 +134,7 @@ class MediaSink:
         media_player.start(buffer)
         await MediaSink(media_player.video, media_player.audio).start()
     """
+
     def __init__(self, *tracks: [MediaStreamTrack]):
         self.tracks = tracks
         self._stop_event = asyncio.Event()

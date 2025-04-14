@@ -11,5 +11,5 @@ buffer = avatar_manager.tts_buffer("lisa_casual_720_pl", text, voice_id=7406)
 video, audio, text = next(buffer)
 
 print("writing avatar started")
-avatar_file_writer("../../../test/avatar.mp4", video, audio)
+avatar_file_writer("avatar.mp4", video, audio)
 print("writing avatar ended")

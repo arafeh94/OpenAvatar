@@ -4,43 +4,56 @@ import inspect
 from typing import Callable
 from aiortc import RTCPeerConnection
 from services.rtc.src.agent import Requests
-from services.rtc.src.tracks.audio_track import AudioStream
 from services.rtc.src.tracks.avatar_player import AvatarMediaPlayer
-from services.rtc.src.tracks.video_track import VideoStream
 
 
 class ServerPeer:
     def __init__(self, token: str, on_close: Callable[[str], None]):
-        self.token = token
-        self.on_close = on_close
+        self.__token = token
+        self._on_close = on_close
 
-        self.peer = RTCPeerConnection()
+        self.__peer = RTCPeerConnection()
+        self.__channel = self.peer.createDataChannel("chat")
 
-        self.channel = self.peer.createDataChannel("chat")
+        self.__player = AvatarMediaPlayer()
+        self.__peer.addTrack(self.player.video)
+        self.__peer.addTrack(self.player.audio)
 
-        self.player = AvatarMediaPlayer()
-        self.peer.addTrack(self.player.video)
-        self.peer.addTrack(self.player.audio)
+        self._register_events()
 
-        self.register_events()
+        self.logger = logging.getLogger("Peer#{}".format(self.__token))
 
-        self.logger = logging.getLogger("Peer#{}".format(self.token))
+    @property
+    def player(self):
+        return self.__player
+
+    @property
+    def peer(self):
+        return self.__peer
+
+    @property
+    def channel(self):
+        return self.__channel
+
+    @property
+    def token(self):
+        return self.__token
 
     async def offer(self):
-        await self.peer.setLocalDescription(await self.peer.createOffer())
-        return self.peer.localDescription
+        await self.__peer.setLocalDescription(await self.peer.createOffer())
+        return self.__peer.localDescription
 
     async def accept(self, remote_sdp):
-        await self.peer.setRemoteDescription(remote_sdp)
+        await self.__peer.setRemoteDescription(remote_sdp)
 
-    def register_events(self):
+    def _register_events(self):
         @self.channel.on('open')
         def on_open():
             print("channel opened")
 
         @self.channel.on('close')
         def on_close():
-            self.on_close(self.token)
+            self._on_close(self.token)
 
         @self.channel.on('message')
         async def on_message(message):
@@ -52,4 +65,4 @@ class ServerPeer:
                     await process(self) if inspect.iscoroutinefunction(process) else process(self)
 
     def send_message(self, message):
-        self.channel.send(message)
+        self.__channel.send(message)
