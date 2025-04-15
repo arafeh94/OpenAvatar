@@ -73,6 +73,7 @@ class AvatarManager:
     def tts_buffer(self, persona, text, **kwargs) -> Generator[Any, Audio, Union[str, None]]:
         """
         Return a generator where each yield return the frames and the audio assigned to these frames.
+        Be careful, this method takes too much time. Better run it inside a thread
         Args:
             persona: avatar files
             text: the text to repeat (convert to speach and generate lip-synced frames)
@@ -85,6 +86,9 @@ class AvatarManager:
         avatar = self.get_avatar(persona)
         tts_buffer = AvatarTTS(avatar, self.tts_convertor)
         return tts_buffer.buffer(text, **kwargs)
+
+
+
 
 
 def avatar_file_writer(output_path, avatar_buffer: Avatar.AvatarBuffer, audio: Audio, width_height=(1280, 720)):

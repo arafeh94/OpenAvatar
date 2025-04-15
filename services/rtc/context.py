@@ -1,4 +1,5 @@
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any
 
 from core.plugins.lip_sync.core.avatar_extentions import AvatarManager
@@ -20,6 +21,7 @@ class AppContext:
             self.peers = {}
             self.avatar_manager = AvatarManager()
             self.peer_preferences: Dict[str, Dict[str, Any]] = defaultdict(dict)
+            self.__executor = ThreadPoolExecutor(max_workers=10)
             self._initialized = True
 
     def idle_frame(self, peer_id):
@@ -29,3 +31,15 @@ class AppContext:
         idle_frame = peer_preferences["idle_frame_index"]
         peer_preferences["idle_frame_index"] += 1
         return idle_frame
+
+    def run_in_thread(self, fn, on_end, *args, **kwargs):
+        future = self.__executor.submit(fn, *args, **kwargs)
+
+        def callback(fut):
+            try:
+                result = fut.result()
+                on_end(result)
+            except Exception as e:
+                print(f"Exception in thread: {e}")
+
+        future.add_done_callback(callback)

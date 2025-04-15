@@ -49,7 +49,7 @@ class ServerPeer:
     def _register_events(self):
         @self.channel.on('open')
         def on_open():
-            print("channel opened")
+            ...
 
         @self.channel.on('close')
         def on_close():

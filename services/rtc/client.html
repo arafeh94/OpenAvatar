@@ -5,6 +5,7 @@
         html {
             color-scheme: dark !important;
         }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
@@ -74,12 +75,11 @@
 
 </head>
 <body>
-<div>
-    <video id="video" autoplay playsinline controls></video>
-    <audio id="audio" autoplay controls></audio>
-    <div style="padding: 10px"></div>
-    <div>
-        <button onclick="rtc.register()" class="send-btn">Connect</button>
+<div class="card">
+    <div class="code-container">
+        <video id="video" autoplay playsinline controls style="width:1280px; height:720px"></video>
+        <audio id="audio" autoplay controls hidden></audio>
+        <button onclick="rtc.register()" class="send-btn" style="margin: 15px">Connect</button>
     </div>
 </div>
 <script>

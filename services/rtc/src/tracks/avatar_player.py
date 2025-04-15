@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 import threading
 from asyncio import QueueEmpty
@@ -21,6 +22,7 @@ class PlayerStreamTrack(MediaStreamTrack):
         self._start: Optional[float] = None
         self.idle_frame = idle_frame
         self.pts = 0
+        self.logger = logging.getLogger(f"{self.__class__.__name__}:{self.kind}")
 
     def _next_pts(self, frame) -> int:
         if self.kind == "audio":
@@ -37,8 +39,10 @@ class PlayerStreamTrack(MediaStreamTrack):
             raise MediaStreamError
         try:
             data = self._queue.get_nowait()
+            frame_type = 'lip-sync'
         except QueueEmpty:
             data = self.idle_frame()
+            frame_type = 'idle'
 
         if data is None:
             self.stop()
@@ -53,7 +57,8 @@ class PlayerStreamTrack(MediaStreamTrack):
 
         if self._start is None:
             self._start = current_time
-            print(
+            self.logger.info(
+                f"frame_type:{frame_type:<8},\t"
                 f"start_time:{self._start:.4f},\t"
                 f"current_time:{current_time:.4f},\t"
                 f"data_time:{round(data_time, 4):.4f}s,\t"
@@ -62,7 +67,8 @@ class PlayerStreamTrack(MediaStreamTrack):
             )
         else:
             wait = self._start + data_time - current_time
-            print(
+            self.logger.info(
+                f"frame_type:{frame_type:<8}\t"
                 f"start_time:{self._start:.4f},\t"
                 f"current_time:{current_time:.4f},\t"
                 f"data_time:{round(data_time, 4):.4f}s,\t"
@@ -86,7 +92,14 @@ def avatar_worker_decode(
         while True:
             try:
                 video, audio, text = next(buffer)
-                publish(video, audio, video_track, audio_track, loop, timestamp=True)
+                thread = threading.Thread(
+                    target=publish,
+                    args=(video, audio, video_track, audio_track, loop),
+                    kwargs={"timestamp": True},
+                    daemon=True
+                )
+                thread.start()
+                # publish(video, audio, video_track, audio_track, loop, timestamp=True)
             except StopIteration:
                 break
 
@@ -157,6 +170,7 @@ class AvatarMediaPlayer:
                     self.__audio,
                     self.__thread_quit,
                 ),
+                daemon=True,
             )
             self.__thread.start()
 
