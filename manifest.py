@@ -64,5 +64,5 @@ class Manifest:
             val = val.get(key, None)
         return val if val is not None else default
 
-    def object(self, name, **kwargs) -> SimpleNamespace:
+    def as_object(self, name, **kwargs) -> SimpleNamespace:
         return SimpleNamespace(**{**dict(self.get(name)), **kwargs})

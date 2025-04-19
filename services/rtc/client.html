@@ -1,6 +1,8 @@
 <html lang="en">
 <head>
     <title>RTC Client</title>
+    <script src="js/rtc.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         html {
             color-scheme: dark !important;
@@ -76,116 +78,27 @@
 </head>
 <body>
 <div class="card">
-    <div class="code-container">
-        <video id="video" autoplay playsinline controls style="width:1280px; height:720px"></video>
+    <div class="code-container" style="justify-content: center;align-items: center;">
+        <video id="video" autoplay playsinline style="width:1280px; height:720px"></video>
         <audio id="audio" autoplay controls hidden></audio>
-        <button onclick="rtc.register()" class="send-btn" style="margin: 15px">Connect</button>
+    </div>
+    <button onclick="rtc.register()" class="send-btn" style="margin: 15px">Connect</button>
+    <div style="position: relative;">
+        <div style="position: absolute; bottom: 0; right: 0; background-color: rgba(122,112,179,0.17); padding: 10px; margin: 10px; border-radius: 10px;">
+            <span style="color: white;" id="timestamp">00.0000</span>
+        </div>
     </div>
 </div>
 <script>
-    class Fetcher {
-        constructor(base_url = null) {
-            this.base_url = base_url;
-        }
-
-        async fetch(route, get = {}, post = null) {
-            const url = new URL(`${this.base_url}/${route}`);
-
-            Object.keys(get).forEach(key => url.searchParams.append(key, get[key]));
-
-            const options = {
-                method: post ? 'POST' : 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            };
-
-            if (post) {
-                options.body = JSON.stringify(post);
-            }
-
-            return fetch(url, options)
-        }
+    let app = {
+        video: document.getElementById('video'),
+        audio: document.getElementById('audio'),
+        ai_response: '',
+        timestamp: null
     }
-
-    class AvatarRTCClient extends Fetcher {
-        static OPEN = 'onopen';
-        static CLOSE = 'onclose';
-        static MESSAGE = 'onmessage';
-        static TRACK = 'ontrack';
-
-        constructor() {
-            super("http://localhost:8000");
-            this.peer = new RTCPeerConnection();
-            this.token = null;
-            this.events = {};
-            this.channel = null;
-            this.peer.ondatachannel = (event) => {
-                const channel = event.channel;
-                channel.onopen = this.onopen.bind(this);
-                channel.onclose = this.onclose.bind(this);
-                channel.onmessage = this.onmessage.bind(this);
-                this.channel = channel;
-            }
-            this.peer.ontrack = (event) => {
-                this.ontrack(event)
-            }
-
-            this.video = document.getElementById("video");
-            this.audio = document.getElementById("audio");
-        }
-
-        async register() {
-            const response = await this.fetch('register').then(response => response.json());
-            this.token = response.token;
-            await this.peer.setRemoteDescription(response.sdp);
-            await this.peer.setLocalDescription(await this.peer.createAnswer());
-            const params = {'token': this.token, 'sdp': JSON.stringify(this.peer.localDescription)}
-            const confirm = await this.fetch('confirm', params).then(response => response.json());
-            return confirm.status === 'accepted';
-        }
-
-        onopen() {
-            this.events[AvatarRTCClient.OPEN]?.();
-        }
-
-        onclose() {
-            this.events[AvatarRTCClient.CLOSE]?.();
-        }
-
-        onmessage(event) {
-            this.events[AvatarRTCClient.MESSAGE]?.(event.data);
-        }
-
-        ontrack(event) {
-            this.events[AvatarRTCClient.TRACK]?.(event);
-            const [stream] = event.streams;
-            if (event.track.kind === 'video') {
-                this.video.srcObject = stream;
-            } else if (event.track.kind === 'audio') {
-                this.audio.srcObject = stream;
-            }
-        }
-
-        on(event, callback) {
-            this.events[event] = callback;
-        }
-
-        send_message(message) {
-            this.channel.send(message);
-        }
-    }
-
-    rtc = new AvatarRTCClient()
+    rtc = new AvatarRTCClient("http://localhost:8000", app.video, app.audio)
     rtc.on(AvatarRTCClient.OPEN, () => {
         console.log('RTC open');
-    })
-    rtc.on(AvatarRTCClient.MESSAGE, (message) => {
-        console.log(message);
-        document.getElementById('llm-response').innerHTML = message;
-    })
-    rtc.on(AvatarRTCClient.TRACK, (event) => {
-        console.log(event);
     })
 </script>
 
@@ -194,7 +107,7 @@
     <div class="code-container">
         <code>
             <!--@formatter:off-->
-{"avatar":{"repeat":"hello samira how are you today", "persona":"lisa_casual_720_pl"}}
+{"avatar":{"repeat":"hello samira how are you today", "persona":"lisa_casual_720_pl", "voice_id":7406}}
             <!--@formatter:on-->
         </code>
         <button class="send-btn" onclick="avatar_send(this)">Send</button>
@@ -206,10 +119,10 @@
     <div class="code-container">
         <code>
             <!--@formatter:off-->
-{"llm":{"query":"what is search engine?", "history":[]}}
+{"llm":{"query":"what is search engine?", "stream":true, "history":[]}}
             <!--@formatter:on-->
         </code>
-        <button class="send-btn" onclick="avatar_send(this)">Send</button>
+        <button class="send-btn" onclick="llm_send(this)">Send</button>
     </div>
 </div>
 
@@ -225,7 +138,7 @@
     <div class="code-container">
         <code>
             <!--@formatter:off-->
-{"avatar":{"repeat":"Healthcare in the United States is a complex and multifaceted system that combines public and private elements, presenting both opportunities and challenges for individuals, policymakers, and the economy. It is often described as one of the most advanced healthcare systems in the world in terms of medical technology, research, and access to specialized care. However, it is also marked by disparities in access, affordability, and outcomes, which contribute to ongoing debates about reform and improvement. The healthcare system is largely dominated by private insurance companies, with a significant portion of the population receiving coverage through employer-sponsored insurance plans. In addition to these private plans, there are public health programs like Medicaid and Medicare that provide coverage for low-income individuals and those over the age of 65, respectively. However, a substantial number of Americans remain uninsured or underinsured, which has led to concerns about the overall effectiveness and equity of the system.", "persona":"lisa_casual_720_pl"}}
+{"avatar":{"repeat":"Healthcare in the United States is a complex and multifaceted system that combines public and private elements, presenting both opportunities and challenges for individuals, policymakers, and the economy. It is often described as one of the most advanced healthcare systems in the world in terms of medical technology, research, and access to specialized care. However, it is also marked by disparities in access, affordability, and outcomes, which contribute to ongoing debates about reform and improvement. The healthcare system is largely dominated by private insurance companies, with a significant portion of the population receiving coverage through employer-sponsored insurance plans. In addition to these private plans, there are public health programs like Medicaid and Medicare that provide coverage for low-income individuals and those over the age of 65, respectively. However, a substantial number of Americans remain uninsured or underinsured, which has led to concerns about the overall effectiveness and equity of the system.", "persona":"lisa_casual_720_pl", "voice_id":7406}}
             <!--@formatter:on-->
         </code>
         <button class="send-btn" onclick="avatar_send(this)">Send</button>
@@ -236,10 +149,25 @@
     function avatar_send(button) {
         const codeText = button.previousElementSibling.textContent.trim();
         console.log(codeText);
-        rtc.send_message(codeText);
+        rtc.request(codeText);
         button.textContent = 'Sending...';
         setTimeout(() => {
-            button.textContent = 'Send';  // Reset text to 'Send' after 2 seconds
+            button.textContent = 'Send';
+        }, 1000);
+    }
+
+    function llm_send(button) {
+        const codeText = button.previousElementSibling.textContent.trim();
+        console.log(codeText);
+        app.ai_response = '';
+        rtc.request(codeText, (payload) => {
+            console.log(payload);
+            app.ai_response += payload;
+            document.getElementById('llm-response').innerHTML = marked.parse(app.ai_response);
+        });
+        button.textContent = 'Sending...';
+        setTimeout(() => {
+            button.textContent = 'Send';
         }, 1000);
     }
 </script>

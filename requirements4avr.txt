@@ -17,3 +17,4 @@ starlette
 pydantic
 easydict
 fsspec
+sentencepiece

@@ -3,7 +3,7 @@ import logging
 import os
 import platform
 import subprocess
-from typing import Generator, Union, Any, Tuple
+from typing import Generator, Union, Any, Tuple, List
 import cv2
 import numpy as np
 from aiortc.mediastreams import AUDIO_PTIME
@@ -186,7 +186,7 @@ class AvatarVideoDecoder:
         return av_frames
 
     @staticmethod
-    def silence(sample_rate: int, duration_sec: float, pts: int = 0) -> [Frame]:
+    def silence(sample_rate: int, duration_sec: float, pts: int = 0) -> List[Frame]:
         total_samples = int(sample_rate * duration_sec)
         max_samples_per_frame = int(sample_rate * AUDIO_PTIME)
         audio_time_base = fractions.Fraction(1, sample_rate)
@@ -211,7 +211,7 @@ class AvatarVideoDecoder:
         return frames
 
     @staticmethod
-    def idle(persona, frame_index, pts=0) -> [Frame]:
+    def idle(persona, frame_index, pts=0) -> List[Frame]:
         frame = AvatarManager().get_avatar(persona).get_frame(frame_index)
         av_frame = VideoFrame.from_ndarray(frame, format="bgr24")
         av_frame.time_base = fractions.Fraction(1, AvatarVideoDecoder.CLOCK_RATE)

@@ -1,0 +1,10 @@
+pymupdf
+langchain_chroma
+langchain_community
+langchain_core
+langchain_openai
+langchain_core
+langchain_ollama
+langgraph
+tqdm
+loguru

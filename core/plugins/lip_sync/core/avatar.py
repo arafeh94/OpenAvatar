@@ -140,7 +140,6 @@ class Avatar(object):
 
         img_batch, mel_batch, frame_batch, coords_batch = [], [], [], []
         for i, m in enumerate(mels):
-            # TODO: starting frame have an issue with the non blocking lookahead generator. starting two thread at the same time we can't track the next audio starting frame
             idx = 0 if self.args.static else (i + starting_frame) % len(frames)
             frame_to_save = frames[idx].copy()
             face, coords = face_det_results[idx].copy()
@@ -197,6 +196,7 @@ class Avatar(object):
         mel = melspectrogram(audio.samples)
         mel_chunks = self._get_mel_chunks(mel)
         frame_gen = self._base_frame_generator(mel_chunks, self.frame_offset.value)
+        # frame_gen = NonBlockingLookaheadGenerator(self._base_frame_generator(mel_chunks, self.frame_offset.value))
         self.frame_offset.value = self.frame_offset.value + len(mel_chunks)
         return NonBlockingLookaheadGenerator(self._lip_sync_generator(frame_gen), 'lip_sync_generator')
 

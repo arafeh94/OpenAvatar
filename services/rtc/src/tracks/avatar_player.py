@@ -11,6 +11,7 @@ from av import VideoFrame
 from av.frame import Frame
 
 from core.plugins.lip_sync.core.avatar_extentions import AvatarVideoDecoder
+from manifest import Manifest
 from services.rtc.context import AppContext
 
 
@@ -23,6 +24,7 @@ class PlayerStreamTrack(MediaStreamTrack):
         self.idle_frame = idle_frame
         self.pts = 0
         self.logger = logging.getLogger(f"{self.__class__.__name__}:{self.kind}")
+        self.__log = Manifest().query('rtc.behaviors.log_timestamps', False)
 
     def _next_pts(self, frame) -> int:
         if self.kind == "audio":
@@ -57,7 +59,7 @@ class PlayerStreamTrack(MediaStreamTrack):
 
         if self._start is None:
             self._start = current_time
-            self.logger.info(
+            self.__log and self.logger.info(
                 f"frame_type:{frame_type:<8},\t"
                 f"start_time:{self._start:.4f},\t"
                 f"current_time:{current_time:.4f},\t"
@@ -67,7 +69,7 @@ class PlayerStreamTrack(MediaStreamTrack):
             )
         else:
             wait = self._start + data_time - current_time
-            self.logger.info(
+            self.__log and self.logger.info(
                 f"frame_type:{frame_type:<8}\t"
                 f"start_time:{self._start:.4f},\t"
                 f"current_time:{current_time:.4f},\t"

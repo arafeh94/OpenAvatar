@@ -1,9 +1,10 @@
+import json
 import logging
 import inspect
 
 from typing import Callable
 from aiortc import RTCPeerConnection
-from services.rtc.src.agent import Requests
+from services.rtc.src.agent import Requests, Packet
 from services.rtc.src.tracks.avatar_player import AvatarMediaPlayer
 
 
@@ -57,7 +58,7 @@ class ServerPeer:
 
         @self.channel.on('message')
         async def on_message(message):
-            self.logger.info("message received: {}".format(message))
+            self.logger.info("DataChannel: {}".format(message))
             data = Requests(message)
             for agent_request in data.parse_agents():
                 if agent_request.is_valid():
@@ -66,3 +67,6 @@ class ServerPeer:
 
     def send_message(self, message):
         self.__channel.send(message)
+
+    def send_packet(self, packet: Packet):
+        self.__channel.send(packet.as_json())

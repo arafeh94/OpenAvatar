@@ -4,6 +4,7 @@ from typing import Dict, Any
 
 from core.plugins.lip_sync.core.avatar_extentions import AvatarManager
 from core.plugins.lip_sync.core.models import AvatarWave2LipModel
+from core.plugins.rag.chat import ChatService
 from core.plugins.text2speech import MicrosoftText2Speech
 
 
@@ -19,6 +20,7 @@ class AppContext:
     def __init__(self):
         if not self._initialized:
             self.peers = {}
+            self.chat = ChatService.create(model_name='gpt-4o-mini', max_tokens=16384)
             self.avatar_manager = AvatarManager()
             self.peer_preferences: Dict[str, Dict[str, Any]] = defaultdict(dict)
             self.__executor = ThreadPoolExecutor(max_workers=10)

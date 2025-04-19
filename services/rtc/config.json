@@ -4,6 +4,9 @@
       "avatar": "services.rtc.src.agents.avatar_agent.AvatarAgent",
       "fake": "services.rtc.src.agents.fake_agent.FakeAgent",
       "llm": "services.rtc.src.agents.llm_agent.LLMAgent"
+    },
+    "behaviors": {
+      "log_timestamps": 0
     }
   },
   "avatar": {
@@ -13,14 +16,29 @@
     "face": "face_{}.pkl",
     "video": "video_{}.mp4",
     "fps": 24,
-    "buffer_size": 96,
-    "wav2lip_batch_size": 96,
+    "buffer_size": 48,
+    "wav2lip_batch_size": 48,
     "mel_step_size": 16,
-    "pads": [0, 10, 0, 0],
+    "pads": [
+      0,
+      10,
+      0,
+      0
+    ],
     "face_det_batch_size": 2,
     "resize_factor": 1,
-    "crop": [0, -1, 0, -1],
-    "box": [-1, -1, -1, -1],
+    "crop": [
+      0,
+      -1,
+      0,
+      -1
+    ],
+    "box": [
+      -1,
+      -1,
+      -1,
+      -1
+    ],
     "rotate": false,
     "nosmooth": false,
     "img_size": 96,
