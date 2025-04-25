@@ -3,7 +3,7 @@ import logging
 import os
 import platform
 import subprocess
-from typing import Generator, Union, Any, Tuple, List
+from typing import Generator, Union, Any, Tuple, List, Callable
 import cv2
 import numpy as np
 from aiortc.mediastreams import AUDIO_PTIME
@@ -88,9 +88,6 @@ class AvatarManager:
         return tts_buffer.buffer(text, **kwargs)
 
 
-
-
-
 def avatar_file_writer(output_path, avatar_buffer: Avatar.AvatarBuffer, audio: Audio, width_height=(1280, 720)):
     temp_avatar = f'_temp_avatar_{time.strftime("%Y%m%d_%H%M%S")}_{random.randint(0, 99999)}.avi'
     temp_audio = f'_temp_audio_{time.strftime("%Y%m%d_%H%M%S")}_{random.randint(0, 99999)}.wav'
@@ -100,10 +97,7 @@ def avatar_file_writer(output_path, avatar_buffer: Avatar.AvatarBuffer, audio: A
     for frame in avatar_buffer:
         out.write(frame)
     out.release()
-    print("writing frames ended")
-    print("writing audio started")
     audio.write(temp_audio)
-    print("writing audio ended")
     command = f'ffmpeg -y -i {temp_audio} -i {temp_avatar} -strict -2 -q:v 1 {output_path}'
     subprocess.call(command, shell=platform.system() != 'Windows')
     os.remove(temp_avatar)
@@ -115,75 +109,74 @@ class AvatarVideoDecoder:
     FPS = 24
 
     @staticmethod
-    def decode(stream: Tuple[Any, Audio], timestamp=True):
+    def decode(stream: Tuple[Any, Audio], frame_decoded: Callable[[Frame], None]):
         AVD = AvatarVideoDecoder
-        frames = []
-        # Be careful, video here isn't fully fetched (lip-synced) yet. This might take some times ~2s.
-        video_frames, audio_frames = stream
-        if timestamp:
-            video_frames, audio_frames = AVD.ts_video(video_frames), AVD.ts_audio(audio_frames)
+        video_buffer, audio_frames = stream
+        video_buffer, audio_frames = AVD.TSVideo(video_buffer), AVD.TSAudio(audio_frames)
 
         audio_time, video_time = 0, 0
         v_index, a_index = 0, 0
-        while v_index < len(video_frames) and a_index < len(audio_frames):
-            if video_time <= audio_time:
-                frames.append(video_frames[v_index])
-                video_time = float(video_frames[v_index].pts * video_frames[v_index].time_base)
-                v_index += 1
-            else:
-                frames.append(audio_frames[a_index])
-                audio_time = float(audio_frames[a_index].pts * audio_frames[a_index].time_base)
-                a_index += 1
+        while True:
+            try:
+                if video_time <= audio_time:
+                    video_frame = next(video_buffer)
+                    video_time = float(video_frame.pts * video_frame.time_base)
+                    v_index += 1
+                    frame_decoded(video_frame)
+                else:
+                    audio_frame = next(audio_frames)
+                    audio_time = float(audio_frame.pts * audio_frame.time_base)
+                    a_index += 1
+                    frame_decoded(audio_frame)
+            except StopIteration:
+                break
 
-        frames.extend(video_frames[v_index:])
-        frames.extend(audio_frames[a_index:])
+    class TSVideo:
+        def __init__(self, frame_buffer):
+            self.frame_buffer = frame_buffer
+            self.pts = 0
+            self.pts_increment = int(AvatarVideoDecoder.CLOCK_RATE / AvatarVideoDecoder.FPS)
 
-        # Video frame correction to avoid desynchronization.
-        # Works when audio have more frames of total less than 1/fps(s)
-        # if len(audio_frames[a_index:]) > 0:
-        #     frame_time = sum([f.samples for f in audio_frames[a_index:]]) / audio_frames[-1].sample_rate
-        #     pts_increment = frame_time * AVD.CLOCK_RATE
-        #     np_frames = pts_increment * AVD.FPS / AVD.CLOCK_RATE
-        #     frames_ts = utils.split_ones(np_frames) * (AVD.CLOCK_RATE / AVD.FPS)
-        #     latest_v_frame = video_frames[-1]
-        #     for frame_ts in frames_ts:
-        #         duplicate_frame = video_frames[-1].to_ndarray(format='rgb24')
-        #         duplicate_frame = VideoFrame.from_ndarray(duplicate_frame, format="bgr24")
-        #         duplicate_frame.pts = latest_v_frame.pts + frame_ts
-        #         frames.append(duplicate_frame)
-        #         latest_v_frame = duplicate_frame
-        #     frames.extend(audio_frames[a_index:])
-        return frames
+        def __iter__(self):
+            return self
 
-    @staticmethod
-    def ts_audio(audio: Audio):
-        audio_time_base = fractions.Fraction(1, audio.sampling_rate)
-        av_frames = []
-        pts = 0
-        batches = utils.create_batches(audio.samples, int(audio.sampling_rate * AUDIO_PTIME))
-        for i, audio_samples in enumerate(batches):
-            block = (np.array(audio_samples) / max(1, np.max(np.abs(audio_samples))) * 32767).astype(np.int16)
-            av_frame = AudioFrame.from_ndarray(block.reshape(1, -1), format='s16', layout='mono')
-            av_frame.sample_rate = audio.sampling_rate
-            av_frame.pts = pts
-            av_frame.time_base = audio_time_base
-            av_frames.append(av_frame)
-            pts += len(audio_samples)
-        return av_frames
-
-    @staticmethod
-    def ts_video(frame_buffer):
-        av_frames = []
-        pts = 0
-        pts_increment = int(AvatarVideoDecoder.CLOCK_RATE / AvatarVideoDecoder.FPS)
-
-        for i, frame in enumerate(frame_buffer):
+        def __next__(self):
+            frame = next(self.frame_buffer)
+            if frame is None:
+                raise StopIteration
             av_frame = VideoFrame.from_ndarray(frame, format="bgr24")
             av_frame.time_base = fractions.Fraction(1, AvatarVideoDecoder.CLOCK_RATE)
-            av_frame.pts = pts
-            av_frames.append(av_frame)
-            pts += pts_increment
-        return av_frames
+            av_frame.pts = self.pts
+            self.pts += self.pts_increment
+            return av_frame
+
+    class TSAudio:
+        def __init__(self, audio: Audio):
+            self.audio = audio
+            self.pts = 0
+            self.audio_time_base = fractions.Fraction(1, audio.sampling_rate)
+            self.batches = iter(utils.create_batches(audio.samples, int(audio.sampling_rate * AUDIO_PTIME)))
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            audio_samples = next(self.batches)
+            block = (np.array(audio_samples) / max(1, np.max(np.abs(audio_samples))) * 32767).astype(np.int16)
+            av_frame = AudioFrame.from_ndarray(block.reshape(1, -1), format='s16', layout='mono')
+            av_frame.sample_rate = self.audio.sampling_rate
+            av_frame.pts = self.pts
+            av_frame.time_base = self.audio_time_base
+            self.pts += len(audio_samples)
+            return av_frame
+
+    @staticmethod
+    def idle(persona, frame_index, pts=0) -> List[Frame]:
+        frame = AvatarManager().get_avatar(persona).get_frame(frame_index)
+        av_frame = VideoFrame.from_ndarray(frame, format="bgr24")
+        av_frame.time_base = fractions.Fraction(1, AvatarVideoDecoder.CLOCK_RATE)
+        av_frame.pts = pts
+        return [av_frame]
 
     @staticmethod
     def silence(sample_rate: int, duration_sec: float, pts: int = 0) -> List[Frame]:
@@ -209,11 +202,3 @@ class AvatarVideoDecoder:
             remaining -= current_samples
 
         return frames
-
-    @staticmethod
-    def idle(persona, frame_index, pts=0) -> List[Frame]:
-        frame = AvatarManager().get_avatar(persona).get_frame(frame_index)
-        av_frame = VideoFrame.from_ndarray(frame, format="bgr24")
-        av_frame.time_base = fractions.Fraction(1, AvatarVideoDecoder.CLOCK_RATE)
-        av_frame.pts = pts
-        return [av_frame]

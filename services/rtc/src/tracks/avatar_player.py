@@ -4,7 +4,7 @@ import time
 import threading
 from asyncio import QueueEmpty
 from queue import Queue, Empty
-from typing import Optional, Callable
+from typing import Optional, Callable, List
 from aiortc.contrib.media import logger
 from aiortc.mediastreams import MediaStreamTrack, MediaStreamError, AUDIO_PTIME
 from av import VideoFrame
@@ -25,6 +25,7 @@ class PlayerStreamTrack(MediaStreamTrack):
         self.pts = 0
         self.logger = logging.getLogger(f"{self.__class__.__name__}:{self.kind}")
         self.__log = Manifest().query('rtc.behaviors.log_timestamps', False)
+        # self.__log = True
 
     def _next_pts(self, frame) -> int:
         if self.kind == "audio":
@@ -94,26 +95,21 @@ def avatar_worker_decode(
         while True:
             try:
                 video, audio, text = next(buffer)
-                thread = threading.Thread(
-                    target=publish,
-                    args=(video, audio, video_track, audio_track, loop),
-                    kwargs={"timestamp": True},
-                    daemon=True
-                )
-                thread.start()
-                # publish(video, audio, video_track, audio_track, loop, timestamp=True)
+                publish(video, audio, video_track, audio_track, loop)
             except StopIteration:
                 break
 
 
-def publish(video, audio, video_track, audio_track, loop, timestamp):
+def publish(video, audio, video_track, audio_track, loop):
     AVD = AvatarVideoDecoder
-    container = AVD.decode((video, audio), timestamp)
-    for frame in container:
-        if isinstance(frame, VideoFrame):
-            asyncio.run_coroutine_threadsafe(video_track.publish(frame), loop)
+
+    def publisher(_frame):
+        if isinstance(_frame, VideoFrame):
+            asyncio.run_coroutine_threadsafe(video_track.publish(_frame), loop)
         else:
-            asyncio.run_coroutine_threadsafe(audio_track.publish(frame), loop)
+            asyncio.run_coroutine_threadsafe(audio_track.publish(_frame), loop)
+
+    AVD.decode((video, audio), publisher)
 
 
 class IdleFrames:
@@ -196,7 +192,7 @@ class MediaSink:
         await MediaSink(media_player.video, media_player.audio).start()
     """
 
-    def __init__(self, *tracks: [MediaStreamTrack]):
+    def __init__(self, *tracks: MediaStreamTrack):
         self.__tracks = tracks
         self._stop_event = asyncio.Event()
 
