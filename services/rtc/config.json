@@ -46,7 +46,7 @@
   },
   "tts": {
     "prediction_batch_size": 8000,
-    "max_text_sample": 200
+    "max_text_sample": 0
   },
   "_comment": "manifest"
 }

@@ -3,7 +3,7 @@ import re
 
 def split_text(text, max_length=400):
     # Regular expression to split the text into sentences
-    sentences = re.split(r'(?<=[.!?]) +', text)
+    sentences = [text] if max_length == 0 else re.split(r'(?<=[.!?]) +', text)
 
     current_chunk = sentences[0]
 

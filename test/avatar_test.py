@@ -13,9 +13,7 @@ buffer = avatar_manager.tts_buffer('lisa_casual_720_pl', text, voice_id=7406)
 first_audio = None
 for video, audio, text in buffer:
     for frame in video:
-        print("Time taken for first frame: {}s".format(time.time() - t))
-        break
-    t = time.time()
+        continue
     # if first_audio is None:
     #     first_audio = audio
     # first_audio.extends(audio)

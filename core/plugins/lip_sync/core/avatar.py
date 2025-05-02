@@ -196,7 +196,6 @@ class Avatar(object):
         mel = melspectrogram(audio.samples)
         mel_chunks = self._get_mel_chunks(mel)
         frame_gen = self._base_frame_generator(mel_chunks, self.frame_offset.value)
-        # frame_gen = NonBlockingLookaheadGenerator(self._base_frame_generator(mel_chunks, self.frame_offset.value))
         self.frame_offset.value = self.frame_offset.value + len(mel_chunks)
         return NonBlockingLookaheadGenerator(self._lip_sync_generator(frame_gen), 'lip_sync_generator')
 
@@ -244,6 +243,7 @@ class Avatar(object):
 
         def __next__(self):
             try:
+                import time
                 if not self._frame_stream.any() or self._frame_index >= len(self._frame_stream):
                     self._frame_index = 0
                     self._frame_stream = next(self._frame_buffer)

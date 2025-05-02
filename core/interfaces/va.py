@@ -23,9 +23,9 @@ class Audio:
     def clip(self, start, end):
         return Audio(self.samples[start:end], self.sampling_rate)
 
-    def write(self, path):
+    def write(self, path, format='wav'):
         import soundfile as sf
-        sf.write(path, self.samples, self.sampling_rate)
+        sf.write(path, self.samples, self.sampling_rate, format=format)
 
     @staticmethod
     def load(audio_path, sr=None):

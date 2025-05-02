@@ -1,4 +1,5 @@
 import importlib
+import io
 import logging
 import threading
 
@@ -58,4 +59,12 @@ def create_batches(arr, batch_size):
 def sec(t):
     millis = round((t - int(t)) * 1000, 4)
     return f"{millis:.4f}"
+
+def as_bytes(generator):
+    data = io.BytesIO()
+    for chunk in generator:
+        if chunk:
+            data.write(chunk)
+    data.seek(0)
+    return data
 

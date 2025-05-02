@@ -14,7 +14,7 @@ from core.interfaces.base_tts import Text2Speech
 from core.interfaces.va import Audio
 from core.plugins.lip_sync.core.avatar import Avatar
 from core.plugins.lip_sync.core.models import AvatarWave2LipModel
-from core.plugins.text2speech import MicrosoftText2Speech
+from core.plugins.text2speech import MicrosoftText2Speech, ElevenLabsText2Speech
 from core.tools import utils
 from core.tools.async_generator import NonBlockingLookaheadGenerator
 from core.tools.text_split import TextSampler
@@ -58,7 +58,7 @@ class AvatarManager:
         if self._initialized: return
         self.avatar_cache = {}
         self.avatar_model = AvatarWave2LipModel()
-        self.tts_convertor = MicrosoftText2Speech()
+        self.tts_convertor = ElevenLabsText2Speech()
         self._initialized = True
 
     def get_avatar(self, persona):
@@ -113,7 +113,6 @@ class AvatarVideoDecoder:
         AVD = AvatarVideoDecoder
         video_buffer, audio_frames = stream
         video_buffer, audio_frames = AVD.TSVideo(video_buffer), AVD.TSAudio(audio_frames)
-
         audio_time, video_time = 0, 0
         v_index, a_index = 0, 0
         while True:
