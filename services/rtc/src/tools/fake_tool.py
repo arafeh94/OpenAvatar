@@ -1,8 +1,8 @@
-from services.rtc.src.agent import AgentRequest
+from services.rtc.src.tool import ToolRequest
 
 
 # noinspection PyUnresolvedReferences
-class FakeAgent(AgentRequest):
+class FakeTool(ToolRequest):
     def __init__(self, **kwargs):
         self.data = None
         super().__init__(**kwargs)

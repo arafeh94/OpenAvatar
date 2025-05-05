@@ -1,16 +1,17 @@
 import asyncio
 import logging
-import time
 import threading
+import time
 from asyncio import QueueEmpty
-from queue import Queue, Empty
-from typing import Optional, Callable, List
+from queue import Queue
+from typing import Optional, Callable
+
 from aiortc.contrib.media import logger
 from aiortc.mediastreams import MediaStreamTrack, MediaStreamError, AUDIO_PTIME
 from av import VideoFrame
 from av.frame import Frame
 
-from core.plugins.lip_sync.core.avatar_extentions import AvatarVideoDecoder
+from core.plugins.lip_sync.core.decoder import AvatarVideoDecoder
 from manifest import Manifest
 from services.rtc.context import AppContext
 

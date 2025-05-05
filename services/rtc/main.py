@@ -1,11 +1,12 @@
 import json
+
 import uvicorn
 from aiortc import RTCSessionDescription
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from core.tools.token_generator import generate_token
 from core.tools import utils
+from core.tools.token_generator import generate_token
 from services.rtc.context import AppContext
 from services.rtc.src.peer import ServerPeer
 
@@ -21,16 +22,16 @@ app.add_middleware(
 
 
 def on_peer_close(token):
-    del AppContext().peers[token]
+    AppContext().del_peer(token)
     print("peer {} closed".format(token))
 
 
 @app.get("/register")
-async def register():
+async def register(persona: str):
     token = generate_token()
-    server = ServerPeer(token, on_peer_close)
+    server = ServerPeer(token, persona, on_peer_close)
     sdp = await server.offer()
-    AppContext().peers[token] = server
+    AppContext().add_peer(token, server)
     return {"sdp": sdp, 'token': token}
 
 

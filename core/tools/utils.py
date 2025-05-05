@@ -33,7 +33,7 @@ def enable_logging(file_name=None, level=logging.INFO):
     if file_name:
         logging.basicConfig(filename=file_name, filemode='w', datefmt='%H:%M:%S', level=level)
     else:
-        logging.basicConfig(level=level)
+        logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=level)
 
 
 def info(logger, content, **args):
@@ -60,6 +60,7 @@ def sec(t):
     millis = round((t - int(t)) * 1000, 4)
     return f"{millis:.4f}"
 
+
 def as_bytes(generator):
     data = io.BytesIO()
     for chunk in generator:
@@ -67,4 +68,3 @@ def as_bytes(generator):
             data.write(chunk)
     data.seek(0)
     return data
-

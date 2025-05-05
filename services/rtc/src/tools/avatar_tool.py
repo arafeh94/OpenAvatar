@@ -1,9 +1,9 @@
 from services.rtc.context import AppContext
-from services.rtc.src.agent import AgentRequest
+from services.rtc.src.tool import ToolRequest
 from services.rtc.src.typing import ServerPeer
 
 
-class AvatarAgent(AgentRequest):
+class AvatarTool(ToolRequest):
     def __init__(self, **kwargs):
         self.repeat = None
         self.persona = None

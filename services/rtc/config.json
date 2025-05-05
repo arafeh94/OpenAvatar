@@ -1,9 +1,9 @@
 {
   "rtc": {
-    "agents": {
-      "avatar": "services.rtc.src.agents.avatar_agent.AvatarAgent",
-      "fake": "services.rtc.src.agents.fake_agent.FakeAgent",
-      "llm": "services.rtc.src.agents.llm_agent.LLMAgent"
+    "tools": {
+      "avatar": "services.rtc.src.tools.avatar_tool.AvatarTool",
+      "fake": "services.rtc.src.tools.fake_tool.FakeTool",
+      "llm": "services.rtc.src.tools.llm_tool.LLMTool"
     },
     "behaviors": {
       "log_timestamps": 0

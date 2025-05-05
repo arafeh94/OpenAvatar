@@ -3,9 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any
 
 from core.plugins.lip_sync.core.avatar_extentions import AvatarManager
-from core.plugins.lip_sync.core.models import AvatarWave2LipModel
 from core.plugins.rag.chat import ChatService
-from core.plugins.text2speech import MicrosoftText2Speech
 
 
 class AppContext:
@@ -25,6 +23,12 @@ class AppContext:
             self.peer_preferences: Dict[str, Dict[str, Any]] = defaultdict(dict)
             self.__executor = ThreadPoolExecutor(max_workers=10)
             self._initialized = True
+
+    def add_peer(self, peer_id, peer):
+        self.peers[peer_id] = peer
+
+    def del_peer(self, peer_id):
+        del self.peers[peer_id]
 
     def idle_frame(self, peer_id):
         peer_preferences = self.peer_preferences[peer_id]

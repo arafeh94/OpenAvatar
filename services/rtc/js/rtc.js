@@ -66,8 +66,9 @@ class AvatarRTCClient extends Fetcher {
         this.idGenerator = IdGenerator();
     }
 
-    async register() {
-        const response = await this.fetch('register').then(response => response.json());
+    async register(persona) {
+        const response = await this.fetch('register', {'persona': persona})
+            .then(response => response.json());
         this.token = response.token;
         this.idGenerator = IdGenerator(this.token + '-');
         await this.peer.setRemoteDescription(response.sdp);

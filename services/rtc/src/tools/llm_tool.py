@@ -1,13 +1,10 @@
-import asyncio
-import threading
 from typing import List, Optional
 
 from services.rtc.context import AppContext
-from services.rtc.src.agent import AgentRequest
-from services.rtc.src.peer import Packet
+from services.rtc.src.tool import ToolRequest
 
 
-class LLMAgent(AgentRequest):
+class LLMTool(ToolRequest):
     def __init__(self, **kwargs):
         self.query: Optional[str] = None
         self.history: Optional[List] = None

@@ -1,22 +1,22 @@
-import json
-import logging
 import inspect
-
+import logging
 from typing import Callable
+
 from aiortc import RTCPeerConnection
-from services.rtc.src.agent import Requests, Packet
+
+from services.rtc.src.tool import Requests, Packet
 from services.rtc.src.tracks.avatar_player import AvatarMediaPlayer
 
 
 class ServerPeer:
-    def __init__(self, token: str, on_close: Callable[[str], None]):
+    def __init__(self, token: str, persona: str, on_close: Callable[[str], None]):
         self.__token = token
         self._on_close = on_close
 
         self.__peer = RTCPeerConnection()
         self.__channel = self.peer.createDataChannel("chat")
 
-        self.__player = AvatarMediaPlayer(token, "lisa_casual_720_pl")
+        self.__player = AvatarMediaPlayer(token, persona)
         self.__peer.addTrack(self.player.video)
         self.__peer.addTrack(self.player.audio)
 
@@ -60,9 +60,9 @@ class ServerPeer:
         async def on_message(message):
             self.logger.info("DataChannel: {}".format(message))
             data = Requests(message)
-            for agent_request in data.parse_agents():
-                if agent_request.is_valid():
-                    process = agent_request.process
+            for tool_request in data.parse_tools():
+                if tool_request.is_valid():
+                    process = tool_request.process
                     await process(self) if inspect.iscoroutinefunction(process) else process(self)
 
     def send_message(self, message):

@@ -1,11 +1,6 @@
-import io
 import os
-
-import librosa
-import numpy as np
 import torch
 from elevenlabs import VoiceSettings, ElevenLabs
-from pydub import AudioSegment
 from transformers import pipeline
 from datasets import load_dataset
 from core.interfaces.base_tts import Text2Speech
@@ -36,7 +31,6 @@ class ElevenLabsText2Speech(Text2Speech):
 
     def convert(self, text, **kwargs) -> VoiceConvertable:
         voice_id = kwargs['voice_id'] if 'voice_id' in kwargs else "pNInz6obpgDQGcFmaJgB"
-        voice_id = "pNInz6obpgDQGcFmaJgB"
         response = self.client.text_to_speech.convert(
             voice_id=voice_id,
             output_format="pcm_16000",

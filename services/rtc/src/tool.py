@@ -28,7 +28,7 @@ class Packet:
         return json.dumps({'id': self.id, 'payload': self.payload, 'status': self.__status})
 
 
-class AgentRequest:
+class ToolRequest:
     def __init__(self, **kwargs):
         self.id = None
         self.__dict__.update(kwargs)
@@ -70,19 +70,19 @@ class Requests:
         except Exception as dict_parse_error:
             self.logger.error("Exception while converting json to dict: {}".format(dict_parse_error))
 
-    def agents(self):
+    def tools(self):
         if not self.is_valid:
             return None
         return list(self.payload().keys())
 
-    def parse_agents(self) -> List[AgentRequest]:
-        agent_requests = []
-        rtc_agents = Manifest().query('rtc.agents')
-        for agent in self.agents():
-            if agent in rtc_agents:
-                request = utils.get_class_instance(rtc_agents[agent], **{**self.payload().get(agent), 'id': self.__id})
-                agent_requests.append(request)
-        return agent_requests
+    def parse_tools(self) -> List[ToolRequest]:
+        tool_requests = []
+        rtc_tools = Manifest().query('rtc.tools')
+        for tool in self.tools():
+            if tool in rtc_tools:
+                _request = utils.get_class_instance(rtc_tools[tool], **{**self.payload().get(tool), 'id': self.__id})
+                tool_requests.append(_request)
+        return tool_requests
 
     def payload(self) -> Optional[EasyDict]:
         if '_parsed_payload' in self.__dict__:
@@ -95,8 +95,8 @@ class Requests:
 
 if __name__ == '__main__':
     request = Requests('{"fake":{"data":"hello"}')
-    print(request.agents())
-    print(request.parse_agents())
-    for request in request.parse_agents():
+    print(request.tools())
+    print(request.parse_tools())
+    for request in request.parse_tools():
         # noinspection PyTypeChecker
         request.process(None)

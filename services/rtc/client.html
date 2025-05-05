@@ -33,18 +33,20 @@
         .code-container {
             background-color: #2d2d2d;
             color: #f8f8f2;
-            padding: 20px;
+            padding: 12px;
             border-radius: 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .code-container code {
+        .code-container pre {
             font-family: 'Courier New', Courier, monospace;
             white-space: pre-wrap;
             word-wrap: break-word;
             font-size: 16px;
+            padding: 0;
+            margin: 0;
         }
 
         .send-btn {
@@ -73,6 +75,7 @@
             color: whitesmoke;
             margin-bottom: 15px;
         }
+
     </style>
 
 </head>
@@ -82,7 +85,7 @@
         <video id="video" autoplay playsinline style="width:1280px; height:720px"></video>
         <audio id="audio" autoplay controls hidden></audio>
     </div>
-    <button onclick="rtc.register()" class="send-btn" style="margin: 15px">Connect</button>
+    <button onclick="rtc.register('lisa_casual_720_pl')" class="send-btn" style="margin: 15px">Connect</button>
     <div style="position: relative;">
         <div style="position: absolute; bottom: 0; right: 0; background-color: rgba(122,112,179,0.17); padding: 10px; margin: 10px; border-radius: 10px;">
             <span style="color: white;" id="timestamp">00.0000</span>
@@ -105,11 +108,11 @@
 <div class="card" style="max-width: 46.1%">
     <div class="card-header">Short Avatar Repeat Request</div>
     <div class="code-container">
-        <code>
+        <pre contenteditable="true" class="editable-code" style="white-space: pre-wrap; word-wrap: break-word;">
             <!--@formatter:off-->
 {"avatar":{"repeat":"hello samira how are you today", "persona":"lisa_casual_720_pl", "voice_id":7406}}
             <!--@formatter:on-->
-        </code>
+        </pre>
         <button class="send-btn" onclick="avatar_send(this)">Send</button>
     </div>
 </div>
@@ -117,11 +120,11 @@
 <div class="card" style="max-width: 46.1%">
     <div class="card-header">LLM Request</div>
     <div class="code-container">
-        <code>
+        <pre contenteditable="true" class="editable-code" style="white-space: pre-wrap; word-wrap: break-word;">
             <!--@formatter:off-->
 {"llm":{"query":"what is search engine?", "stream":true, "history":[]}}
             <!--@formatter:on-->
-        </code>
+        </pre>
         <button class="send-btn" onclick="llm_send(this)">Send</button>
     </div>
 </div>
@@ -136,11 +139,11 @@
 <div class="card">
     <div class="card-header">Long Avatar Repeat Request</div>
     <div class="code-container">
-        <code>
+        <pre contenteditable="true" class="editable-code" style="white-space: pre-wrap; word-wrap: break-word;">
             <!--@formatter:off-->
 {"avatar":{"repeat":"Healthcare in the United States is a complex and multifaceted system that combines public and private elements, presenting both opportunities and challenges for individuals, policymakers, and the economy. It is often described as one of the most advanced healthcare systems in the world in terms of medical technology, research, and access to specialized care. However, it is also marked by disparities in access, affordability, and outcomes, which contribute to ongoing debates about reform and improvement. The healthcare system is largely dominated by private insurance companies, with a significant portion of the population receiving coverage through employer-sponsored insurance plans. In addition to these private plans, there are public health programs like Medicaid and Medicare that provide coverage for low-income individuals and those over the age of 65, respectively. However, a substantial number of Americans remain uninsured or underinsured, which has led to concerns about the overall effectiveness and equity of the system.", "persona":"lisa_casual_720_pl", "voice_id":7406}}
             <!--@formatter:on-->
-        </code>
+        </pre>
         <button class="send-btn" onclick="avatar_send(this)">Send</button>
     </div>
 </div>
