@@ -1,0 +1,64 @@
+<html lang="en">
+<head>
+    <title>RTC Client</title>
+    <script src="js/rtc.js"></script>
+    <script>
+        app = {
+            rtcs: []
+        }
+
+        function div_template(id) {
+            return `<div>
+                    <video id="video_${id}" width="640" height="480" autoplay></video>
+                    <audio id="audio_${id}" autoplay></audio>
+                </div>`
+        }
+
+        function create_connection(id) {
+            return new Promise(() => {
+                try {
+                    const video = document.createElement('div');
+                    video.innerHTML = div_template(id);
+                    document.body.appendChild(video);
+
+                    const video_element = document.getElementById(`video_${id}`);
+                    const audio_element = document.getElementById(`audio_${id}`);
+                    const rtc = new AvatarRTCClient('http://localhost:8000', video_element, audio_element);
+
+                    rtc.on(AvatarRTCClient.OPEN, () => {
+                        console.log(`Connected ${id}`);
+                    });
+                    console.log("Creating connection")
+                    rtc.register('azzz', 'W2HCL8HKphQD6DJ0KJp1');
+                    app.rtcs.push(rtc);
+                } catch (error) {
+                    console.log(error)
+                }
+            });
+        }
+
+        async function connect() {
+            const connections = document.getElementById('cc').value;
+            const promises = [];
+
+            for (let i = 0; i < connections; i++) {
+                promises.push(create_connection(i));
+            }
+
+            try {
+                const rtcConnections = await Promise.all(promises);
+                console.log('All connections established:', rtcConnections);
+            } catch (error) {
+                console.error('Error in one of the connections:', error);
+            }
+        }
+    </script>
+</head>
+<body>
+<div>
+    How many connections? <input id="cc" type="number" value="1">
+    <button onclick="connect()">Connect</button>
+    <button onclick="app.rtcs.forEach(rtc=>rtc.repeat('Hello'))">Say Hello</button>
+</div>
+</body>
+</html>

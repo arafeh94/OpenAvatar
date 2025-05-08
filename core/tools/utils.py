@@ -29,6 +29,7 @@ def get_class_instance(class_path: str, *args, **kwargs):
     return class_ref(*args, **kwargs)
 
 
+
 def enable_logging(file_name=None, level=logging.INFO):
     if file_name:
         logging.basicConfig(filename=file_name, filemode='w', datefmt='%H:%M:%S', level=level)

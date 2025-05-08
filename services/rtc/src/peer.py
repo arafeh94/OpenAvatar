@@ -44,6 +44,9 @@ class ServerPeer:
         await self.__peer.setLocalDescription(await self.peer.createOffer())
         return self.__peer.localDescription
 
+    async def close(self):
+        await self.__peer.close()
+
     async def accept(self, remote_sdp):
         await self.__peer.setRemoteDescription(remote_sdp)
 
@@ -54,6 +57,7 @@ class ServerPeer:
 
         @self.channel.on('close')
         def on_close():
+            self.player.quit()
             self._on_close(self.token)
 
         @self.channel.on('message')
@@ -61,9 +65,8 @@ class ServerPeer:
             self.logger.info("DataChannel: {}".format(message))
             data = Requests(message)
             for tool_request in data.parse_tools():
-                if tool_request.is_valid():
-                    process = tool_request.process
-                    await process(self) if inspect.iscoroutinefunction(process) else process(self)
+                process = tool_request.process
+                await process(self) if inspect.iscoroutinefunction(process) else process(self)
 
     def send_message(self, message):
         self.__channel.send(message)

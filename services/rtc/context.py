@@ -4,6 +4,7 @@ from typing import Dict, Any
 
 from core.plugins.lip_sync.core.avatar_extentions import AvatarManager
 from core.plugins.rag.chat import ChatService
+from services.rtc.src.typing import ServerPeer
 
 
 class AppContext:
@@ -29,6 +30,9 @@ class AppContext:
 
     def del_peer(self, peer_id):
         del self.peers[peer_id]
+
+    def peer(self, token) -> 'ServerPeer':
+        return self.peers[token]
 
     def idle_frame(self, peer_id):
         peer_preferences = self.peer_preferences[peer_id]

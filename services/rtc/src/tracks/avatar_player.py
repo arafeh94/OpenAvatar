@@ -4,9 +4,8 @@ import threading
 import time
 from asyncio import QueueEmpty
 from queue import Queue
-from typing import Optional, Callable
+from typing import Optional, Callable, Union
 
-from aiortc.contrib.media import logger
 from aiortc.mediastreams import MediaStreamTrack, MediaStreamError, AUDIO_PTIME
 from av import VideoFrame
 from av.frame import Frame
@@ -89,22 +88,30 @@ def avatar_worker_decode(
         buffer_queue: Queue,
         video_track: PlayerStreamTrack,
         audio_track: PlayerStreamTrack,
-        quit_event
+        events: "AvatarMediaPlayer.Event",
 ):
-    while not quit_event.is_set():
+    while not events.thread_quit.is_set():
+        # wait for an avatar request
         buffer = buffer_queue.get()
+        if buffer is None:
+            continue
+        events.is_streaming.set()
         while True:
             try:
                 video, audio, text = next(buffer)
-                publish(video, audio, video_track, audio_track, loop)
+                publish(video, audio, video_track, audio_track, loop, events)
             except StopIteration:
+                events.is_streaming.clear()
                 break
 
 
-def publish(video, audio, video_track, audio_track, loop):
+def publish(video, audio, video_track, audio_track, loop, events: "AvatarMediaPlayer.Event"):
     AVD = AvatarVideoDecoder
 
     def publisher(_frame):
+        if events.is_streaming.is_set() and events.stream_quit.is_set():
+            events.stream_quit.clear()
+            raise StopIteration
         if isinstance(_frame, VideoFrame):
             asyncio.run_coroutine_threadsafe(video_track.publish(_frame), loop)
         else:
@@ -130,12 +137,30 @@ class IdleFrames:
 
 
 class AvatarMediaPlayer:
+    class Event:
+        def __init__(self) -> None:
+            self.__thread_quit = threading.Event()
+            self.__stream_quit = threading.Event()
+            self.__is_streaming = threading.Event()
+
+        @property
+        def thread_quit(self):
+            return self.__thread_quit
+
+        @property
+        def stream_quit(self):
+            return self.__stream_quit
+
+        @property
+        def is_streaming(self):
+            return self.__is_streaming
+
     def __init__(self, peer_id, persona) -> None:
         self.__thread: Optional[threading.Thread] = None
-        self.__thread_quit: Optional[threading.Event] = None
+        self.__events = AvatarMediaPlayer.Event()
         self.__audio: PlayerStreamTrack = PlayerStreamTrack("audio", IdleFrames.audio())
         self.__video: PlayerStreamTrack = PlayerStreamTrack("video", IdleFrames.video(peer_id, persona))
-        self.__buffer_queue: Queue[Frame] = Queue()
+        self.__buffer_queue: Queue[Optional[Frame]] = Queue()
         self.__persona = persona
         self.__peer_id = peer_id
 
@@ -158,7 +183,6 @@ class AvatarMediaPlayer:
             self.__buffer_queue.put(buffer)
         if self.__thread is None:
             self.__log_debug("Starting worker thread")
-            self.__thread_quit = threading.Event()
             self.__thread = threading.Thread(
                 name="avatar-media-player",
                 target=avatar_worker_decode,
@@ -167,21 +191,28 @@ class AvatarMediaPlayer:
                     self.__buffer_queue,
                     self.__video,
                     self.__audio,
-                    self.__thread_quit,
+                    self.__events,
                 ),
                 daemon=True,
             )
             self.__thread.start()
 
     def stop(self) -> None:
+        self.__log_debug("Notifying current stream to stop.")
+        if self.__events.is_streaming.is_set():
+            self.__events.stream_quit.set()
+
+    def quit(self) -> None:
+        # ensure that the queue unblocks to allow thread to exit
+        self.__buffer_queue.put(None)
         if self.__thread is not None:
             self.__log_debug("Stopping worker thread")
-            self.__thread_quit.set()
+            self.__events.thread_quit.set()
             self.__thread.join()
             self.__thread = None
 
     def __log_debug(self, msg: str, *args) -> None:
-        logger.debug(f"MediaPlayer(%s) {msg}", 'Avatar Container', *args)
+        logging.debug(f"MediaPlayer(%s) {msg}", 'Avatar Container', *args)
 
 
 class MediaSink:

@@ -7,7 +7,8 @@ from langgraph.constants import START
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from tabulate import tabulate
-from app.rag.chat import generate_token
+
+from core.tools.token_generator import generate_token
 
 
 class AnalystQuery:

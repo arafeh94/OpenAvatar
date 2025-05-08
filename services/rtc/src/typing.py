@@ -1,5 +1,5 @@
 # Add class definitions only to this file.
-# Its main purpose is to avoid classes cycling importing classes to use them for only IDE typing.
+# Its main purpose is to avoid circular imports. Use them for only IDE type hinting.
 
 
 # noinspection PyPropertyDefinition
@@ -18,6 +18,8 @@ class ServerPeer:
     async def offer(self): ...
 
     async def accept(self, remote_sdp): ...
+
+    async def close(self): ...
 
     def send_message(self, message: str): ...
 

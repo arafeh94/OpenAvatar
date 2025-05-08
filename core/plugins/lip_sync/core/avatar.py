@@ -2,6 +2,7 @@ import logging
 import os
 import pickle
 import threading
+import time
 from types import SimpleNamespace
 from typing import Iterator, List, Tuple, Generator, Union, Any
 
@@ -243,12 +244,12 @@ class Avatar(object):
 
         def __next__(self):
             try:
-                import time
-                if not self._frame_stream.any() or self._frame_index >= len(self._frame_stream):
+                if self._frame_index >= len(self._frame_stream):
                     self._frame_index = 0
                     self._frame_stream = next(self._frame_buffer)
             except StopIteration:
                 raise StopIteration
 
+            frame = self._frame_stream[self._frame_index]
             self._frame_index += 1
-            return self._frame_stream[self._frame_index - 1]
+            return frame

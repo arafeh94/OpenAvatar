@@ -78,3 +78,5 @@ class FileAI:
         self._wait_for_run_completion(thread_id=thread.id, run_id=run.id)
         response = self._get_assistant_response(thread_id=thread.id)
         return response
+
+

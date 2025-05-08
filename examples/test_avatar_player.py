@@ -11,7 +11,7 @@ avatar_manager = AvatarManager()
 text = "Hello Samira, how are you?"
 
 print("model loaded")
-buffer = avatar_manager.tts_buffer("lisa_casual_720_pl", text, voice_id=7406)
+buffer = avatar_manager.tts_buffer("lisa_casual_720_pl", text)
 print("buffer generated")
 
 

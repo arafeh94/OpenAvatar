@@ -25,7 +25,7 @@
       0,
       0
     ],
-    "face_det_batch_size": 2,
+    "face_det_batch_size": 5,
     "resize_factor": 1,
     "crop": [
       0,
@@ -47,6 +47,9 @@
   "tts": {
     "prediction_batch_size": 8000,
     "max_text_sample": 0
+  },
+  "yolo": {
+    "weights_path": "/home/arafeh/files/yolov8l_100e.pt"
   },
   "_comment": "manifest"
 }

@@ -33,18 +33,12 @@ class ToolRequest:
         self.id = None
         self.__dict__.update(kwargs)
 
-    def is_valid(self):
-        for k, v in self.__dict__.items():
-            if v is None and not k.startswith('_'):
-                return False
-        return True
-
     @abstractmethod
     def process(self, peer: 'ServerPeer'):
         pass
 
-    def packet(self, payload):
-        return Packet(self.id, payload)
+    def packet(self, payload, status='200'):
+        return Packet(self.id, payload, status)
 
     def end_packet(self):
         return Packet(self.id, None, 'ended')
@@ -64,15 +58,12 @@ class Requests:
             self.__type = self.data['type']
             self.__payload = self.data['payload']
             self._parsed_payload = self.payload()
-            self.is_valid = True
         except json.decoder.JSONDecodeError as json_error:
             self.logger.error("Exception while parsing json request: {}".format(json_error))
         except Exception as dict_parse_error:
             self.logger.error("Exception while converting json to dict: {}".format(dict_parse_error))
 
     def tools(self):
-        if not self.is_valid:
-            return None
         return list(self.payload().keys())
 
     def parse_tools(self) -> List[ToolRequest]:
@@ -87,10 +78,14 @@ class Requests:
     def payload(self) -> Optional[EasyDict]:
         if '_parsed_payload' in self.__dict__:
             return self._parsed_payload
-        if self.__type == 'json':
-            self._parsed_payload = EasyDict(json.loads(self.__payload))
-            return self._parsed_payload
-        return None
+        if isinstance(self.__payload, str):
+            if self.__type == 'json':
+                self._parsed_payload = EasyDict(json.loads(self.__payload))
+        elif isinstance(self.__payload, dict):
+            self._parsed_payload = EasyDict(self.__payload)
+        else:
+            self._parsed_payload = self.__payload
+        return self._parsed_payload
 
 
 if __name__ == '__main__':

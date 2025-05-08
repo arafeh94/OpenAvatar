@@ -12,6 +12,13 @@ class Tools {
     }
 }
 
+class PeerStateException extends Error {
+    constructor(message) {
+        super(message);
+        this.name = 'PeerStateException';
+    }
+}
+
 class Fetcher {
     constructor(base_url = null) {
         this.base_url = base_url;
@@ -47,26 +54,37 @@ class AvatarRTCClient extends Fetcher {
         super(url);
         this.video = video_element;
         this.audio = audio_element;
-
-        this.peer = new RTCPeerConnection();
+        this.persona = null;
+        this.voice_id = null;
         this.token = null;
         this.events = {};
         this.channel = null;
-        this.peer.ondatachannel = (event) => {
+        this.peer = null
+        this.callbacks = {}
+        this.idGenerator = IdGenerator();
+    }
+
+    create_peer() {
+        const peer = new RTCPeerConnection();
+        peer.ondatachannel = (event) => {
             const channel = event.channel;
             channel.onopen = this.onopen.bind(this);
             channel.onclose = this.onclose.bind(this);
             channel.onmessage = this.onmessage.bind(this);
             this.channel = channel;
         }
-        this.peer.ontrack = (event) => {
+        peer.ontrack = (event) => {
             this.ontrack(event)
         }
-        this.callbacks = {}
-        this.idGenerator = IdGenerator();
+        return peer;
     }
 
-    async register(persona) {
+
+    async register(persona, voice_id) {
+        this.validate_connection(false);
+        this.persona = persona;
+        this.voice_id = voice_id;
+        this.peer = this.create_peer();
         const response = await this.fetch('register', {'persona': persona})
             .then(response => response.json());
         this.token = response.token;
@@ -76,6 +94,14 @@ class AvatarRTCClient extends Fetcher {
         const params = {'token': this.token, 'sdp': JSON.stringify(this.peer.localDescription)}
         const confirm = await this.fetch('confirm', params).then(response => response.json());
         return confirm.status === 'accepted';
+    }
+
+    async disconnect() {
+        this.validate_connection();
+        this.peer.close();
+        this.channel.close();
+        rtc.video.srcObject.getTracks().forEach(track => track.stop())
+        this.peer = null;
     }
 
     onopen() {
@@ -120,10 +146,41 @@ class AvatarRTCClient extends Fetcher {
         this.events[event] = callback;
     }
 
-    request(packet, callbacks) {
+    request(payload, callbacks) {
+        this.validate_connection()
         const _id = this.idGenerator()
-        packet = {'payload': packet, 'id': _id, 'type': 'json'};
+        const packet = {'payload': payload, 'id': _id, 'type': 'json'};
         this.channel.send(JSON.stringify(packet));
         this.callbacks[_id] = callbacks;
+    }
+
+    stop() {
+        this.validate_connection();
+        rtc.request({'avatar': {'stop_streaming': true}});
+    }
+
+    repeat(text, voice_id = null) {
+        this.validate_connection();
+        voice_id = voice_id ?? this.voice_id;
+        const payload = {
+            "avatar": {
+                "repeat": text,
+                "persona": this.persona,
+                "voice_id": voice_id
+            }
+        }
+        this.request(payload);
+    }
+
+    validate_connection(should_be_connected = true) {
+        if (should_be_connected) {
+            if (this.peer === null) {
+                throw new PeerStateException('Peer is not connected');
+            }
+        } else {
+            if (this.peer !== null) {
+                throw new PeerStateException('Peer is already connected');
+            }
+        }
     }
 }
