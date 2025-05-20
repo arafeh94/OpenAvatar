@@ -10,13 +10,21 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 40px;
+            padding: 0px;
             background-color: #2c2f30;
             color: #fcf7f1;
             justify-content: center;
             align-items: center;
             height: 100vh;
+            margin-left: 5%;
+            margin-right: 5%;
+        }
+
+        @media screen and (min-width: 1920px) {
+            body {
+                margin-left: 20%;
+                margin-right: 20%;
+            }
         }
 
         .card {
@@ -76,6 +84,25 @@
             margin-bottom: 15px;
         }
 
+        #avatar-repeat {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            color: #d6c5c5;
+            border-radius: 12px;
+            background-color: #242429;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            font-size: 16px;
+            margin: 8px 24px 8px 8px;
+            transition: border 0.3s, box-shadow 0.3s;
+        }
+
+        #avatar-repeat:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+
     </style>
 
 </head>
@@ -89,7 +116,7 @@
     <button onclick="rtc.register('azzz','W2HCL8HKphQD6DJ0KJp1')" class="send-btn" style="margin: 15px">Connect</button>
     <button onclick="rtc.stop();" class="send-btn" style="margin: 15px">Stop</button>
     <button onclick="rtc.disconnect();" class="send-btn" style="margin: 15px">Disconnect</button>
-    <button onclick="rtc.repeat('Hello!');" class="send-btn" style="margin: 15px">Say Hello</button>
+    <button onclick="repeat(this, 'Hello!');" class="send-btn" style="margin: 15px">Say Hello</button>
 
     <div style="position: relative;">
         <div style="position: absolute; bottom: 0; right: 0; background-color: rgba(122,112,179,0.17); padding: 10px; margin: 10px; border-radius: 10px;">
@@ -110,20 +137,16 @@
     })
 </script>
 
-<div class="card" style="max-width: 46.1%">
-    <div class="card-header">Short Avatar Repeat Request</div>
+<div class="card" style="max-width: 95%">
+    <div class="card-header">Avatar Repeat Request</div>
     <div class="code-container">
-        <pre contenteditable="true" class="editable-code" style="white-space: pre-wrap; word-wrap: break-word;">
-            <!--@formatter:off-->
-{"avatar":{"repeat":"hello samira how are you today", "persona":"lisa_casual_720_pl", "voice_id":"pNInz6obpgDQGcFmaJgB"}}
-            <!--@formatter:on-->
-        </pre>
-        <button class="send-btn" onclick="avatar_send(this)">Send</button>
+        <label for="avatar-repeat"></label><input type="text" id="avatar-repeat">
+        <button class="send-btn" onclick="repeat(this)">Send</button>
     </div>
 </div>
 
-<div class="card" style="max-width: 46.1%">
-    <div class="card-header">LLM Request</div>
+<div class="card" style="max-width: 95%">
+    <div class="card-header">Tool Request</div>
     <div class="code-container">
         <pre contenteditable="true" class="editable-code" style="white-space: pre-wrap; word-wrap: break-word;">
             <!--@formatter:off-->
@@ -144,39 +167,65 @@
 <div class="card">
     <div class="card-header">Long Avatar Repeat Request</div>
     <div class="code-container">
-        <pre contenteditable="true" class="editable-code" style="white-space: pre-wrap; word-wrap: break-word;">
-            <!--@formatter:off-->
-{"avatar":{"repeat":"Healthcare in the United States is a complex and multifaceted system that combines public and private elements, presenting both opportunities and challenges for individuals, policymakers, and the economy. It is often described as one of the most advanced healthcare systems in the world in terms of medical technology, research, and access to specialized care. However, it is also marked by disparities in access, affordability, and outcomes, which contribute to ongoing debates about reform and improvement. The healthcare system is largely dominated by private insurance companies, with a significant portion of the population receiving coverage through employer-sponsored insurance plans. In addition to these private plans, there are public health programs like Medicaid and Medicare that provide coverage for low-income individuals and those over the age of 65, respectively. However, a substantial number of Americans remain uninsured or underinsured, which has led to concerns about the overall effectiveness and equity of the system.", "persona":"azzz", "voice_id":"W2HCL8HKphQD6DJ0KJp1"}}
-            <!--@formatter:on-->
-        </pre>
+        <code>
+            Healthcare in the United States is a complex and multifaceted system that combines public and private
+            elements,
+            presenting both opportunities and challenges for individuals, policymakers, and the economy. It is often
+            described as one of the most advanced healthcare systems in the world in terms of medical technology,
+            research,
+            and access to specialized care. However, it is also marked by disparities in access, affordability, and
+            outcomes, which contribute to ongoing debates about reform and improvement. The healthcare system is largely
+            dominated by private insurance companies, with a significant portion of the population receiving coverage
+            through employer-sponsored insurance plans. In addition to these private plans, there are public health
+            programs
+            like Medicaid and Medicare that provide coverage for low-income individuals and those over the age of 65,
+            respectively. However, a substantial number of Americans remain uninsured or underinsured, which has led to
+            concerns about the overall effectiveness and equity of the system.
+        </code>
         <button class="send-btn" onclick="avatar_send(this)">Send</button>
     </div>
 </div>
 
 <script>
-    function avatar_send(button) {
-        const codeText = button.previousElementSibling.textContent.trim();
-        console.log(codeText);
-        rtc.request(codeText);
+    function repeat(button, text) {
+        const bt = button.textContent
         button.textContent = 'Sending...';
-        setTimeout(() => {
+        app.timestamp = new Date().getTime();
+        text = text ?? document.getElementById('avatar-repeat').value
+        console.log(text)
+        rtc.repeat(text, (payload) => {
+            console.log(payload)
+            button.textContent = bt;
+            let timestamp = new Date().getTime() - app.timestamp;
+            document.getElementById('timestamp').innerHTML = (timestamp / 1000) + "s";
+        })
+    }
+
+    function avatar_send(button) {
+        button.textContent = 'Sending...';
+        const text = button.previousElementSibling.textContent.trim();
+        console.log(text)
+        app.timestamp = new Date().getTime();
+        rtc.repeat(text, () => {
             button.textContent = 'Send';
-        }, 1000);
+            let timestamp = new Date().getTime() - app.timestamp;
+            document.getElementById('timestamp').innerHTML = (timestamp / 1000) + "s";
+        });
     }
 
     function llm_send(button) {
+        button.textContent = 'Sending...';
         const codeText = button.previousElementSibling.textContent.trim();
         console.log(codeText);
         app.ai_response = '';
-        rtc.request(codeText, (payload) => {
-            console.log(payload);
-            app.ai_response += payload;
-            document.getElementById('llm-response').innerHTML = marked.parse(app.ai_response);
+        rtc.request(codeText, {
+            '200': (packet) => {
+                console.log(packet);
+                button.textContent = 'Send';
+                app.ai_response += packet['payload'];
+                document.getElementById('llm-response').innerHTML = marked.parse(app.ai_response);
+            }
         });
-        button.textContent = 'Sending...';
-        setTimeout(() => {
-            button.textContent = 'Send';
-        }, 1000);
     }
 </script>
 

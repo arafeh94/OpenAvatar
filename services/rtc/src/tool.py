@@ -1,13 +1,15 @@
 import json
 import logging
 from abc import abstractmethod
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from easydict import EasyDict
 
 from core.tools import utils
 from manifest import Manifest
-from services.rtc.src.typing import ServerPeer
+
+if TYPE_CHECKING:
+    from services.rtc.src.peer import ServerPeer
 
 
 class Packet:
@@ -41,7 +43,7 @@ class ToolRequest:
         return Packet(self.id, payload, status)
 
     def end_packet(self):
-        return Packet(self.id, None, 'ended')
+        return Packet(self.id, None, '204')
 
 
 class Requests:

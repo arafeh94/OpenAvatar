@@ -1,7 +1,11 @@
+from typing import TYPE_CHECKING
+
 from services.rtc.src.tool import ToolRequest
 
+if TYPE_CHECKING:
+    from services.rtc.src.peer import ServerPeer
 
-# noinspection PyUnresolvedReferences
+
 class FakeTool(ToolRequest):
     def __init__(self, **kwargs):
         self.data = None

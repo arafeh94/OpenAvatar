@@ -2,24 +2,40 @@
 <head>
     <title>RTC Client</title>
     <script src="js/rtc.js"></script>
+    <style>
+        #video-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px; /* optional spacing between items */
+        }
+    </style>
     <script>
         app = {
-            rtcs: []
+            id_rtcs: {},
+            id_timestamps: {}
         }
 
         function div_template(id) {
-            return `<div>
-                    <video id="video_${id}" width="640" height="480" autoplay></video>
-                    <audio id="audio_${id}" autoplay></audio>
-                </div>`
+            return `
+                <div style="border: 1px solid #ccc; border-radius: 8px; padding: 10px; background: #f9f9f9; display: flex; flex-direction: column; align-items: center; width: fit-content;">
+                    <div style="position: relative;">
+                        <video id="video_${id}" width="320" height="240" autoplay style="border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></video>
+                        <audio id="audio_${id}" autoplay style="display: none;"></audio>
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <span id="timestamp_${id}" style="font-family: monospace; font-size: 14px; color: #555;">0.000s</span>
+                    </div>
+                </div>
+                `;
         }
 
-        function create_connection(id) {
-            return new Promise(() => {
+
+        async function create_connection(id) {
+            return new Promise(async () => {
                 try {
                     const video = document.createElement('div');
                     video.innerHTML = div_template(id);
-                    document.body.appendChild(video);
+                    document.getElementById('video-container').appendChild(video);
 
                     const video_element = document.getElementById(`video_${id}`);
                     const audio_element = document.getElementById(`audio_${id}`);
@@ -29,8 +45,8 @@
                         console.log(`Connected ${id}`);
                     });
                     console.log("Creating connection")
-                    rtc.register('azzz', 'W2HCL8HKphQD6DJ0KJp1');
-                    app.rtcs.push(rtc);
+                    await rtc.register('azzz', 'W2HCL8HKphQD6DJ0KJp1');
+                    app.id_rtcs[id] = rtc
                 } catch (error) {
                     console.log(error)
                 }
@@ -52,13 +68,35 @@
                 console.error('Error in one of the connections:', error);
             }
         }
+
+        function repeater(hello) {
+            Object.entries(app.id_rtcs).forEach(([id, rtc]) => {
+                app.id_timestamps[id] = new Date().getTime();
+                let text = document.getElementById('message').value ?? "Hello!"
+                if (hello) {
+                    text = "Hello!"
+                }
+                rtc.repeat(text, (payload) => {
+                    console.log(`reply from: ${id}`)
+                    console.log(payload)
+                    let local_timestamp = new Date().getTime() - app.id_timestamps[id];
+                    document.getElementById(`timestamp_${id}`).innerHTML = (local_timestamp / 1000) + "s";
+                })
+            })
+
+        }
     </script>
 </head>
 <body>
 <div>
-    How many connections? <input id="cc" type="number" value="1">
+    How many connections? <input id="cc" type="number" value="3">
     <button onclick="connect()">Connect</button>
-    <button onclick="app.rtcs.forEach(rtc=>rtc.repeat('Hello'))">Say Hello</button>
+    <button onclick="repeater(true)">Say Hello</button>
+    <br><br>
+    Say: <input id="message" type="text">
+    <button onclick="repeater()">Repeat</button>
+    <br><br>
+    <div id="video-container"></div>
 </div>
 </body>
 </html>

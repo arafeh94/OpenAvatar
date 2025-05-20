@@ -1,10 +1,12 @@
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, Any
+from typing import Dict, Any, TYPE_CHECKING
 
 from core.plugins.lip_sync.core.avatar_extentions import AvatarManager
 from core.plugins.rag.chat import ChatService
-from services.rtc.src.typing import ServerPeer
+
+if TYPE_CHECKING:
+    from services.rtc.src.peer import ServerPeer
 
 
 class AppContext:
@@ -41,6 +43,12 @@ class AppContext:
         idle_frame = peer_preferences["idle_frame_index"]
         peer_preferences["idle_frame_index"] += 1
         return idle_frame
+
+    def set_idle_frame(self, peer_id, frame_index):
+        peer_preferences = self.peer_preferences[peer_id]
+        if "idle_frame_index" not in peer_preferences:
+            peer_preferences["idle_frame_index"] = 0
+        peer_preferences["idle_frame_index"] += frame_index
 
     def run_in_thread(self, fn, on_end, *args, **kwargs):
         future = self.__executor.submit(fn, *args, **kwargs)

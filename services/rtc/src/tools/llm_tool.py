@@ -1,7 +1,10 @@
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from services.rtc.context import AppContext
 from services.rtc.src.tool import ToolRequest
+
+if TYPE_CHECKING:
+    from services.rtc.src.peer import ServerPeer
 
 
 class LLMTool(ToolRequest):
@@ -11,7 +14,7 @@ class LLMTool(ToolRequest):
         self.stream: Optional[bool] = True
         super().__init__(**kwargs)
 
-    async def process(self, peer):
+    async def process(self, peer: ServerPeer):
         stream = AppContext().chat.ask_ai(self.query, stream=self.stream)
         async for message in stream:
             peer.send_packet(self.packet(message.content))

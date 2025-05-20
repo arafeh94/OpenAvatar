@@ -93,7 +93,7 @@ class AvatarRTCClient extends Fetcher {
         await this.peer.setLocalDescription(await this.peer.createAnswer());
         const params = {'token': this.token, 'sdp': JSON.stringify(this.peer.localDescription)}
         const confirm = await this.fetch('confirm', params).then(response => response.json());
-        return confirm.status === 'accepted';
+        return confirm.status === '200';
     }
 
     async disconnect() {
@@ -117,7 +117,7 @@ class AvatarRTCClient extends Fetcher {
         try {
             const js_packet = JSON.parse(event.data);
             this.fire_callbacks(js_packet);
-            js_packet.status === 'ended' && delete this.callbacks[js_packet.id];
+            js_packet.status === '204' && delete this.callbacks[js_packet.id];
         } catch (err) {
             console.log('Unrefined packet received: ' + event.data, err);
         }
@@ -126,9 +126,9 @@ class AvatarRTCClient extends Fetcher {
     fire_callbacks(js_packet) {
         const _callback = this.callbacks[js_packet.id];
         if (Tools.isDict(_callback)) {
-            _callback[js_packet.status] && _callback[js_packet.status](js_packet.payload);
+            _callback[js_packet.status] && _callback[js_packet.status](js_packet, this);
         } else if (typeof _callback === 'function') {
-            _callback && _callback(js_packet.payload);
+            _callback(js_packet, this);
         }
     }
 
@@ -146,7 +146,7 @@ class AvatarRTCClient extends Fetcher {
         this.events[event] = callback;
     }
 
-    request(payload, callbacks) {
+    request(payload, callbacks = null) {
         this.validate_connection()
         const _id = this.idGenerator()
         const packet = {'payload': payload, 'id': _id, 'type': 'json'};
@@ -159,18 +159,18 @@ class AvatarRTCClient extends Fetcher {
         rtc.request({'avatar': {'stop_streaming': true}});
     }
 
-    repeat(text, voice_id = null) {
+    repeat(text, callback) {
         this.validate_connection();
-        voice_id = voice_id ?? this.voice_id;
         const payload = {
             "avatar": {
                 "repeat": text,
                 "persona": this.persona,
-                "voice_id": voice_id
+                "voice_id": this.voice_id
             }
         }
-        this.request(payload);
+        this.request(payload, callback);
     }
+
 
     validate_connection(should_be_connected = true) {
         if (should_be_connected) {

@@ -2,8 +2,37 @@ import importlib
 import io
 import logging
 import threading
+import typing
 
 import numpy as np
+
+
+class ObservableEvent:
+
+    def __init__(self):
+        self._event = threading.Event()
+        self._listeners = []
+        self._lock = threading.Lock()
+
+    def add_listener(self, callback: typing.Callable, args: tuple = None):
+        with self._lock:
+            self._listeners.append((callback, args))
+
+    def set(self):
+        if self._event.is_set(): return
+        self._event.set()
+        for callback in self._listeners:
+            fn, args = callback
+            threading.Thread(target=fn, args=args).start()
+
+    def wait(self, timeout=None):
+        return self._event.wait(timeout)
+
+    def is_set(self):
+        return self._event.is_set()
+
+    def clear(self):
+        self._event.clear()
 
 
 class SafeValue:
@@ -27,7 +56,6 @@ def get_class_instance(class_path: str, *args, **kwargs):
     module = importlib.import_module(module_name)
     class_ref = getattr(module, class_name)
     return class_ref(*args, **kwargs)
-
 
 
 def enable_logging(file_name=None, level=logging.INFO):
