@@ -14,6 +14,13 @@ class FaceResult:
     def __repr__(self):
         return "bbox: " + str(self.bbox) + " score: " + str(self.score) + " index:" + str(self.index)
 
+    def is_empty(self):
+        return self.bbox == []
+
+    @staticmethod
+    def empty():
+        return FaceResult([], 0, 0)
+
 
 class FaceDetector(ABC):
 
