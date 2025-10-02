@@ -1,5 +1,6 @@
 import logging
 import os
+from logging import Logger
 from pathlib import Path
 from tempfile import mkdtemp
 from typing import List
@@ -10,87 +11,69 @@ import random, cv2
 
 import tqdm
 from decord import VideoReader
-from librosa.util.files import index
-from matplotlib import pyplot as plt
-from moviepy import VideoFileClip, concatenate_audioclips, AudioFileClip
-from torch.backends.mkl import verbose
+from moviepy import VideoFileClip, concatenate_audioclips
 
-from core.interfaces.base_face_detection import FaceResult
 from core.plugins.face_detectors import YoloFaceDetector
 from core.plugins.lip_sync.wave2lip import audio
 from core.plugins.lip_sync.wave2lip.hparams import hparams
-from core.tools import utils
+from manifest import Manifest
 
 
 class DataCreator:
     def __init__(self, video_path):
+        self.logger = logging.getLogger(type(self).__name__)
+        self.face_detector = YoloFaceDetector()
         self.__video_path = video_path
-        self.__output_dir = './dataset/'
+        self.__output_dir = Manifest().query('dataset.dir')
+        os.makedirs(self.__output_dir, exist_ok=True)
+        self.file_list = self.__output_dir + 'file_list.txt'
         self.__video_name = '.'.join(video_path.split('/')[-1].split('.')[:-1])
         self.__video_extension = video_path.split('/')[-1].split('.')[-1]
-        self.__clean_path = self.__output_dir + self.__video_name + '_clean.' + self.__video_extension
-        self.__face_path = self.__output_dir + self.__video_name + '_face.' + self.__video_extension
+        self.__face_path = self.__output_dir + self.__video_name + '.' + self.__video_extension
         self.__wav_path = self.__output_dir + self.__video_name + '.wav'
 
-    def extract_face(self, res=(hparams.img_size, hparams.img_size), batch_size=30):
-        face_detector = YoloFaceDetector()
-        vr = VideoReader(self.__video_path)
-        fps = vr.get_avg_fps()
-        height, width = res
-        out = cv2.VideoWriter(self.__face_path, cv2.VideoWriter_fourcc(*'DIVX'), fps, (width, height))
-        for start in tqdm.tqdm(range(0, len(vr), batch_size), desc="Face extraction"):
-            end = min(start + batch_size, len(vr))
-            frame_bgr = [cv2.cvtColor(img, cv2.COLOR_RGB2BGR) for img in vr[start:end].asnumpy()]
-            frame_face_bgr = face_detector.extract(frame_bgr, verbose=False)
-            for index, face_frame in enumerate(frame_face_bgr):
-                if not all(face_frame[1]):
-                    raise Exception(f"A frame with no face detected at pos {index} between frames {start} and {end}. "
-                                    f"Clean the video first.")
-                rescaled = cv2.resize(face_frame[0], (width, height))
-                out.write(rescaled)
-        out.release()
-        return True
-
     def extract_audio(self):
-        video = VideoFileClip(self.__video_path)
+        video = VideoFileClip(self.__face_path)
         audio = video.audio
         if audio:
             audio.write_audiofile(self.__wav_path)
             return True
         return False
 
-    def clean(self):
-        face_detector = YoloFaceDetector()
+    def preprocess(self, out_res=(hparams.img_size * 2, hparams.img_size * 2)):
         temp_dir = Path(mkdtemp())
         cap = cv2.VideoCapture(self.__video_path)
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = cap.get(cv2.CAP_PROP_FPS)
         duration_per_frame = 1 / fps
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        logger = logging.getLogger('__clean__')
 
-        def has_face(frame):
-            is_detected = not face_detector.detect(frame, verbose=False)[0].is_empty()
-            return is_detected
+        def extract_face(frame):
+            # frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            frame_face, boxes = tuple(self.face_detector.extract([frame], verbose=False)[0])
 
-        temp_video_path = temp_dir / "temp_faces_video.mp4"
-        out = cv2.VideoWriter(str(temp_video_path), cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+            if not all(boxes):
+                return None
+            return frame_face
+
+        temp_video_path = temp_dir / f"temp_faces_video_{random.randint(1000, 9999)}.mp4"
+        out = cv2.VideoWriter(str(temp_video_path), cv2.VideoWriter_fourcc(*'mp4v'), fps, out_res)
 
         selected_frame_indices = []
-        logger.info("Filtering out empty face video frames")
+        self.logger.info("Filtering out empty face video frames")
         for frame_index in tqdm.tqdm(range(total_frames), desc="Filtering frames"):
             ret, frame = cap.read()
             if not ret:
                 break
-            if has_face(frame):
-                out.write(frame)
+            face_frame = extract_face(frame)
+            if face_frame is not None:
+                rescaled = cv2.resize(face_frame, out_res)
+                out.write(rescaled)
                 selected_frame_indices.append(frame_index)
 
         cap.release()
         out.release()
 
-        logger.info("Filtering out empty face audio frames")
+        self.logger.info("Filtering out empty face audio frames")
         original_clip = VideoFileClip(self.__video_path)
         audio_clip = original_clip.audio
         clips = []
@@ -101,16 +84,37 @@ class DataCreator:
 
         filtered_audio = concatenate_audioclips(clips)
 
-        logger.info("Merging audio video clips")
+        self.logger.info("Merging audio video clips")
         video_clip = VideoFileClip(str(temp_video_path)).with_audio(filtered_audio)
-        video_clip.write_videofile(self.__clean_path, codec="libx264", audio_codec="aac")
+        video_clip.write_videofile(self.__face_path, codec="libx264", audio_codec="aac")
 
-        logger.info(f"Filtered video saved to: {self.__clean_path}")
+        self.logger.info(f"Filtered video saved to: {self.__face_path}")
+
+    def update_file_list(self):
+        if not os.path.exists(self.file_list):
+            with open(self.file_list, 'w'):
+                pass
+        with open(self.file_list, 'a') as f:
+            f.write(self.__video_name)
+
+    def build(self, workflow=None):
+        if not workflow:
+            workflow = [self.preprocess, self.extract_audio, self.update_file_list]
+        for process in workflow:
+            process()
 
 
 class Dataset(object):
     syncnet_T = 5
     syncnet_mel_step_size = 16
+
+    @staticmethod
+    def default_list():
+        data_path = Manifest().query('dataset.dir')
+        list_path = f'{data_path}file_list.txt'
+        with open(list_path, "r") as f:
+            lines = [f"{data_path}{line.strip()}.mp4" for line in f]
+        return Dataset(lines)
 
     def __init__(self, videos: List[str]):
         self.videos = videos
@@ -164,6 +168,9 @@ class Dataset(object):
 
         return x
 
+    def __len__(self):
+        return len(self.videos)
+
     def __getitem__(self, idx):
         while 1:
             vid_idx = random.randint(0, len(self.videos) - 1)
@@ -187,7 +194,7 @@ class Dataset(object):
                 continue
 
             try:
-                wav_path = ".".join(dt.videos[0].split('.')[:-1] + ['wav'])
+                wav_path = ".".join(self.videos[vid_idx].split('.')[:-1] + ['wav'])
                 wav = audio.load_wav(wav_path, hparams.sample_rate)
                 orig_mel = audio.melspectrogram(wav).T
             except Exception as e:
@@ -216,5 +223,7 @@ class Dataset(object):
 
 
 if __name__ == '__main__':
-    dc = DataCreator('./dataset/vid2.mp4')
-    dc.clean()
+    # dc = DataCreator('./dataset/vid2.mp4')
+    # dc.build()
+    dt = Dataset.default_list()
+    print(dt[0])
