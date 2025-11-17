@@ -171,6 +171,16 @@ class AvatarRTCClient extends Fetcher {
         this.request(payload, callback);
     }
 
+    hey_repeat(text, callback) {
+        this.validate_connection();
+        const payload = {
+            "heygen": {
+                "text": text,
+            }
+        }
+        this.request(payload, callback);
+    }
+
 
     validate_connection(should_be_connected = true) {
         if (should_be_connected) {

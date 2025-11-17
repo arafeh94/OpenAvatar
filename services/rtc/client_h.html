@@ -113,8 +113,10 @@
         <audio id="audio" autoplay controls hidden></audio>
     </div>
 
-    <button onclick="rtc.register('azzz','21m00Tcm4TlvDq8ikWAM')" class="send-btn" style="margin: 15px">Connect</button>
-<!--    <button onclick="rtc.register('lisa_casual_720_pl','21m00Tcm4TlvDq8ikWAM')" class="send-btn" style="margin: 15px">Connect</button>-->
+    <button onclick="rtc.register('bbdf6602f16c43399fb3cfc8298d52f3','21m00Tcm4TlvDq8ikWAM')" class="send-btn"
+            style="margin: 15px">Connect
+    </button>
+    <!--    <button onclick="rtc.register('lisa_casual_720_pl','21m00Tcm4TlvDq8ikWAM')" class="send-btn" style="margin: 15px">Connect</button>-->
     <button onclick="rtc.stop();" class="send-btn" style="margin: 15px">Stop</button>
     <button onclick="rtc.disconnect();" class="send-btn" style="margin: 15px">Disconnect</button>
     <button onclick="repeat(this, 'Hello!');" class="send-btn" style="margin: 15px">Say Hello</button>
@@ -194,7 +196,7 @@
         app.timestamp = new Date().getTime();
         text = text ?? document.getElementById('avatar-repeat').value
         console.log(text)
-        rtc.repeat(text, (payload) => {
+        rtc.hey_repeat(text, (payload) => {
             console.log(payload)
             button.textContent = bt;
             let timestamp = new Date().getTime() - app.timestamp;
@@ -207,7 +209,7 @@
         const text = button.previousElementSibling.textContent.trim();
         console.log(text)
         app.timestamp = new Date().getTime();
-        rtc.repeat(text, () => {
+        rtc.hey_repeat(text, () => {
             button.textContent = 'Send';
             let timestamp = new Date().getTime() - app.timestamp;
             document.getElementById('timestamp').innerHTML = (timestamp / 1000) + "s";
