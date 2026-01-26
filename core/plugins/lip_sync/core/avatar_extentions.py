@@ -81,17 +81,45 @@ class AvatarManager:
         return tts_buffer.buffer(text, **kwargs)
 
 
-def avatar_file_writer(output_path, avatar_buffer: Avatar.AvatarBuffer, audio: Audio, width_height=(1280, 720)):
-    temp_avatar = f'_temp_avatar_{time.strftime("%Y%m%d_%H%M%S")}_{random.randint(0, 99999)}.avi'
-    temp_audio = f'_temp_audio_{time.strftime("%Y%m%d_%H%M%S")}_{random.randint(0, 99999)}.wav'
-    print("writing frames started")
-    # noinspection PyUnresolvedReferences
-    out = cv2.VideoWriter(temp_avatar, cv2.VideoWriter_fourcc(*'DIVX'), 24, width_height)
+def avatar_file_writer(output_path, avatar_buffer, audio, width_height=(1280, 720), fps=24):
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    rid = random.randint(0, 99999)
+
+    temp_video = f"_temp_avatar_{ts}_{rid}.mp4"
+    temp_audio = f"_temp_audio_{ts}_{rid}.wav"
+
+    out = cv2.VideoWriter(
+        temp_video,
+        cv2.VideoWriter_fourcc(*"mp4v"),
+        fps,
+        width_height
+    )
+    if not out.isOpened():
+        raise RuntimeError("cv2.VideoWriter failed to open. Check codec support and output path.")
+
     for frame in avatar_buffer:
+        if frame is None:
+            continue
+        if frame.shape[1] != width_height[0] or frame.shape[0] != width_height[1]:
+            frame = cv2.resize(frame, width_height, interpolation=cv2.INTER_LINEAR)
         out.write(frame)
+
     out.release()
-    audio.write(temp_audio)
-    command = f'ffmpeg -y -i {temp_audio} -i {temp_avatar} -strict -2 -q:v 1 {output_path}'
-    subprocess.call(command, shell=platform.system() != 'Windows')
-    os.remove(temp_avatar)
+
+    audio.write(temp_audio)  # this should actually write a WAV/PCM file
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", temp_video,
+        "-i", temp_audio,
+        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-r", str(fps),
+        "-c:a", "aac", "-b:a", "192k",
+        "-shortest",
+        "-movflags", "+faststart",
+        output_path
+    ]
+    subprocess.run(cmd, check=True)
+
+    os.remove(temp_video)
     os.remove(temp_audio)

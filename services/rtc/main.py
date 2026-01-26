@@ -1,13 +1,17 @@
 import asyncio
 import json
 import logging
+import shutil
 import typing
+from pathlib import Path
 
 import uvicorn
 from aiortc import RTCSessionDescription
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
+from core.plugins.face_detectors import YoloFaceDetector
+from core.plugins.lip_sync.core.avatar_creator import AvatarCreator
 from core.tools import utils
 from core.tools.token_generator import generate_token
 from services.rtc.context import AppContext
@@ -63,6 +67,24 @@ async def broadcast(message):
     for peer in AppContext().peers.values():
         peer.send_message(message)
     return {"status": "200", "message": "message broadcasted"}
+
+
+@app.post("/upload")
+async def upload_file(persona: str, file: UploadFile = File(...)):
+    BASE_DIR = Path("~/files")
+    BASE_DIR.mkdir(parents=True, exist_ok=True)
+    file_path = BASE_DIR / file.filename
+
+    with file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    creator = AvatarCreator(YoloFaceDetector())
+    creator.create(persona, file_path)
+
+    return {
+        "filename": file.filename,
+        "path": str(file_path)
+    }
 
 
 if __name__ == "__main__":
