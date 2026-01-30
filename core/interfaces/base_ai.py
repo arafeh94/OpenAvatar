@@ -42,7 +42,6 @@ class NonBlockingAIModel(AIModel, ABC):
             return self.model(*args, **kwargs)
 
     def _process_queue(self):
-        """The worker function that processes tasks from the queue."""
         while True:
             future, args, kwargs = self.task_queue.get()
             if future.cancelled():

@@ -19,3 +19,9 @@ easydict
 fsspec
 sentencepiece
 python-multipart
+wget
+future
+py7zr
+ultralytics
+elevenlabs
+python-dotenv

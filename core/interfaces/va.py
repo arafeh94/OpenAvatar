@@ -34,7 +34,11 @@ class Audio:
 
 
 class VoiceConvertable(Convertable):
-    def __init__(self, voice):
+    def __init__(self, voice: dict[bytes, int]):
+        """
+        Args:
+            voice: dict of {audio:bytes, sampling_rate:int}
+        """
         super().__init__()
         self._voice = voice
 

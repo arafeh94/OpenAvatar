@@ -7,6 +7,7 @@ from pathlib import Path
 
 import uvicorn
 from aiortc import RTCSessionDescription
+from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
@@ -17,6 +18,7 @@ from core.tools.token_generator import generate_token
 from services.rtc.context import AppContext
 from services.rtc.src.peer import ServerPeer
 
+load_dotenv()
 utils.enable_logging()
 app = FastAPI()
 app.add_middleware(
@@ -85,6 +87,11 @@ async def upload_file(persona: str, file: UploadFile = File(...)):
         "filename": file.filename,
         "path": str(file_path)
     }
+
+
+@app.get("/")
+def index():
+    return {'status': 200}
 
 
 if __name__ == "__main__":

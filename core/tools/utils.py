@@ -2,7 +2,9 @@ import importlib
 import io
 import logging
 import threading
+import tracemalloc
 import typing
+from typing import Optional
 
 import numpy as np
 
@@ -11,12 +13,12 @@ class ObservableEvent:
 
     def __init__(self):
         self._event = threading.Event()
-        self._listeners = []
+        self._listeners: list[Optional[tuple[any, any]]] = [None]
         self._lock = threading.Lock()
 
-    def add_listener(self, callback: typing.Callable, args: tuple = None):
+    def set_listener(self, callback: typing.Callable, args: tuple = None):
         with self._lock:
-            self._listeners.append((callback, args))
+            self._listeners[0] = (callback, args)
 
     def set(self):
         if self._event.is_set(): return

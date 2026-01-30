@@ -2,7 +2,7 @@ import inspect
 import logging
 from typing import Callable
 
-from aiortc import RTCPeerConnection
+from aiortc import RTCPeerConnection, RTCConfiguration, RTCIceServer
 
 from services.rtc.src.tool import Requests, Packet
 from services.rtc.src.tracks.avatar_player import AvatarMediaPlayer
@@ -13,7 +13,9 @@ class ServerPeer:
         self.__token = token
         self._on_close = on_close
 
-        self.__peer = RTCPeerConnection()
+        self.__peer = RTCPeerConnection(configuration=RTCConfiguration(
+            iceServers=[RTCIceServer(urls=["stun:stun.l.google.com:19302"])]
+        ))
         self.__channel = self.peer.createDataChannel("chat")
 
         self.__player = AvatarMediaPlayer(token, persona)
@@ -72,4 +74,6 @@ class ServerPeer:
         self.__channel.send(message)
 
     def send_packet(self, packet: Packet):
-        self.__channel.send(packet.as_json())
+        as_json = packet.as_json()
+        print("sending: {}".format(as_json))
+        self.__channel.send(as_json)

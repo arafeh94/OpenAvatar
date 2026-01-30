@@ -1,13 +1,18 @@
 {
   "files": {
     "gan": {
-      "download_path": "/home/arafeh/PycharmProjects/avatar_rag_back_end/avatar/checkpoints/wav2lip_gan_96.7z",
+      "download_path": "/home/arafeh/files/wav2lip_gan.7z",
       "download_url": "https://www.dropbox.com/scl/fi/n60770hqt9jyuy14rv0az/wav2lip_gan_96.onnx.7z?rlkey=8s6u61ucoolya990y15jsam3k&st=1r6o2ixc&dl=1",
       "required": true
     },
     "lisa": {
-      "download_path": "/home/arafeh/PycharmProjects/avatar_rag_back_end/avatar/avatar_only/avatar_dir/lisa.7z",
+      "download_path": "/home/arafeh/files/lisa.7z",
       "download_url": "https://www.dropbox.com/scl/fi/0bz9jtzgc4z00j9t5vocg/video_lisa_casual_720_pl.7z?rlkey=lccuhw2oahqs3bhrrmmzv3fn4&st=v7noz4yf&dl=1",
+      "required": true
+    },
+    "yolo": {
+      "download_path": "/home/arafeh/files/yolov8l_100e.zip",
+      "download_url": "https://www.dropbox.com/scl/fi/og7oolnjqp2vjakccwpkx/yolov8l_100e.zip?rlkey=uebj1yq5ej9njgl9h1j4088f4&st=6hvd455b&dl=1",
       "required": true
     }
   },

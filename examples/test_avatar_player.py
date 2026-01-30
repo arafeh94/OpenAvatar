@@ -1,9 +1,6 @@
 import asyncio
 
 from core.plugins.lip_sync.core.avatar_extentions import AvatarManager, avatar_file_writer
-from core.plugins.lip_sync.core.models import AvatarWave2LipModel
-from core.plugins.text2speech import MicrosoftText2Speech
-
 from services.rtc.src.tracks.avatar_player import AvatarMediaPlayer, MediaSink
 
 avatar_manager = AvatarManager()

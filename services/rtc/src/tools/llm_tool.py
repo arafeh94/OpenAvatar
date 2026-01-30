@@ -14,7 +14,7 @@ class LLMTool(ToolRequest):
         self.stream: Optional[bool] = True
         super().__init__(**kwargs)
 
-    async def process(self, peer: ServerPeer):
+    async def process(self, peer: 'ServerPeer'):
         stream = AppContext().chat.ask_ai(self.query, stream=self.stream)
         async for message in stream:
             peer.send_packet(self.packet(message.content))

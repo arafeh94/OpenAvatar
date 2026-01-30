@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import queue
 import threading
 import time
 from asyncio import QueueEmpty
@@ -17,10 +18,11 @@ from services.rtc.context import AppContext
 
 
 class PlayerStreamTrack(MediaStreamTrack):
-    def __init__(self, kind: str, idle_frame: Callable[[], Frame]) -> None:
+    def __init__(self, kind: str, idle_frame: Callable[[], Frame], events: "AvatarMediaPlayer.Event") -> None:
         super().__init__()
         self.kind = kind
         self._queue: asyncio.Queue[Frame] = asyncio.Queue()
+        self.events = events
         self._start: Optional[float] = None
         self.idle_frame = idle_frame
         self.pts = 0
@@ -45,6 +47,8 @@ class PlayerStreamTrack(MediaStreamTrack):
     async def recv(self) -> Frame:
         if self.readyState != "live":
             raise MediaStreamError
+        if self.events.stream_quit.is_set():
+            self.clear()
         try:
             data = self._queue.get_nowait()
             frame_type = 'lip-sync'
@@ -96,30 +100,39 @@ def avatar_worker_decode(
         events: "AvatarMediaPlayer.Event",
 ):
     while not events.thread_quit.is_set():
-        # wait for an avatar request
+        # Wait for an avatar request
         buffer = buffer_queue.get()
         if buffer is None:
             break
-        events.is_streaming.set()
+        events.stream_quit.clear()
         while True:
             try:
+                if events.stream_quit.is_set():
+                    # We might receive stop request while exhausting the generator,
+                    # so we have to clear the queues and buffer generator
+                    try:
+                        # todo: check for garbage collection and memory issues
+                        buffer = iter(())
+                        while True:
+                            buffer_queue.get_nowait()
+                            buffer_queue.task_done()
+                    except queue.Empty:
+                        pass
                 video, audio, text = next(buffer)
                 publish(video, audio, video_track, audio_track, loop, events)
             except StopIteration:
-                events.is_streaming.clear()
-                events.is_ffs.clear()
+                # This executes when we exhaust all the buffer generator and sends it to publish
+                # It does not mean that we aren't streaming!, since the publisher is on separate threads and this one
+                # just have to prepare all the frames before sending them.
                 break
+            finally:
+                events.is_ffs.clear()
 
 
 def publish(video, audio, video_track, audio_track, loop, events: "AvatarMediaPlayer.Event"):
     AVD = AvatarVideoDecoder
 
     def publisher(_frame):
-        if events.is_streaming.is_set() and events.stream_quit.is_set():
-            events.stream_quit.clear()
-            video_track.clear()
-            audio_track.clear()
-            raise StopIteration
         if not events.is_ffs.is_set():
             events.is_ffs.set()
         if isinstance(_frame, VideoFrame):
@@ -151,7 +164,6 @@ class AvatarMediaPlayer:
         def __init__(self) -> None:
             self.__thread_quit = threading.Event()
             self.__stream_quit = threading.Event()
-            self.__is_streaming = threading.Event()
             self.__is_ffs = ObservableEvent()
 
         @property
@@ -163,25 +175,21 @@ class AvatarMediaPlayer:
             return self.__stream_quit
 
         @property
-        def is_streaming(self):
-            return self.__is_streaming
-
-        @property
         def is_ffs(self):
             return self.__is_ffs
 
     def __init__(self, peer_id, persona) -> None:
         self.__thread: Optional[threading.Thread] = None
         self.__events = AvatarMediaPlayer.Event()
-        self.__audio: PlayerStreamTrack = PlayerStreamTrack("audio", IdleFrames.audio())
-        self.__video: PlayerStreamTrack = PlayerStreamTrack("video", IdleFrames.video(peer_id, persona))
+        self.__audio: PlayerStreamTrack = PlayerStreamTrack("audio", IdleFrames.audio(), self.__events)
+        self.__video: PlayerStreamTrack = PlayerStreamTrack("video", IdleFrames.video(peer_id, persona), self.__events)
         self.__buffer_queue: Queue[Optional[Frame]] = Queue()
         self.__persona = persona
         self.__peer_id = peer_id
         self.__logger = logging.getLogger(self.__class__.__name__)
 
     def on_ffs(self, callback: Callable, args: tuple = None):
-        self.__events.is_ffs.add_listener(callback, args)
+        self.__events.is_ffs.set_listener(callback, args)
 
     @property
     def audio(self) -> MediaStreamTrack:
@@ -199,7 +207,6 @@ class AvatarMediaPlayer:
 
     def start(self, buffer) -> None:
         if buffer:
-            self.stop()
             self.__buffer_queue.put(buffer)
         if self.__thread is None:
             self.__thread = threading.Thread(
@@ -217,9 +224,8 @@ class AvatarMediaPlayer:
             self.__thread.start()
 
     def stop(self) -> None:
-        if self.__events.is_streaming.is_set():
-            self.__logger.info("Notifying current stream to stop.")
-            self.__events.stream_quit.set()
+        self.__logger.info("Notifying current stream to stop.")
+        self.__events.stream_quit.set()
 
     def quit(self) -> None:
         self.__buffer_queue.put(None)
