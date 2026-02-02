@@ -58,8 +58,10 @@ class ServerPeer:
             ...
 
         @self.channel.on('close')
-        def on_close():
+        async def on_close():
+            print("closing connection")
             self.player.quit()
+            await self.close()
             self._on_close(self.token)
 
         @self.channel.on('message')

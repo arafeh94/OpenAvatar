@@ -103,6 +103,7 @@ def avatar_worker_decode(
         # Wait for an avatar request
         buffer = buffer_queue.get()
         if buffer is None:
+            print("closing buffer")
             break
         events.stream_quit.clear()
         while True:

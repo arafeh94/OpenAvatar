@@ -20,7 +20,7 @@ class AppContext:
 
     def __init__(self):
         if not self._initialized:
-            self.peers = {}
+            self.peers: Dict[str, ServerPeer] = {}
             self.chat = ChatService.create(model_name='gpt-4o-mini', max_tokens=16384)
             self.avatar_manager = AvatarManager()
             self.peer_preferences: Dict[str, Dict[str, Any]] = defaultdict(dict)

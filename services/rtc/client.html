@@ -97,6 +97,32 @@
             transition: border 0.3s, box-shadow 0.3s;
         }
 
+        #avatar-voice {
+            width: 20%;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            color: #d6c5c5;
+            border-radius: 12px;
+            background-color: #242429;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            font-size: 16px;
+            margin: 8px 24px 8px 8px;
+            transition: border 0.3s, box-shadow 0.3s;
+        }
+
+        #avatar-name {
+            width: 20%;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            color: #d6c5c5;
+            border-radius: 12px;
+            background-color: #242429;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            font-size: 16px;
+            margin: 8px 24px 8px 8px;
+            transition: border 0.3s, box-shadow 0.3s;
+        }
+
         #avatar-repeat:focus {
             outline: none;
             border-color: #3b82f6;
@@ -109,12 +135,15 @@
 <body>
 <div class="card">
     <div class="code-container" style="justify-content: center;align-items: center;">
-        <video id="video" autoplay playsinline style="width:1280px; height:720px"></video>
+        <video id="video" autoplay playsinline style="width:1280px; height:720px" class="zoomed"></video>
         <audio id="audio" autoplay controls hidden></audio>
     </div>
 
-    <button onclick="rtc.register('mag','21m00Tcm4TlvDq8ikWAM')" class="send-btn" style="margin: 15px">Connect</button>
-<!--    <button onclick="rtc.register('lisa_casual_720_pl','21m00Tcm4TlvDq8ikWAM')" class="send-btn" style="margin: 15px">Connect</button>-->
+    <label for="avatar-name"></label><input type="text" id="avatar-name" placeholder="Avatar Name">
+    <label for="avatar-voice"></label><input type="text" id="avatar-voice" placeholder="Avatar Voice">
+
+    <button onclick="register()" class="send-btn" style="margin: 15px">Connect
+    </button>
     <button onclick="rtc.stop();" class="send-btn" style="margin: 15px">Stop</button>
     <button onclick="rtc.disconnect();" class="send-btn" style="margin: 15px">Disconnect</button>
     <button onclick="repeat(this, 'Hello!');" class="send-btn" style="margin: 15px">Say Hello</button>
@@ -130,9 +159,9 @@
         video: document.getElementById('video'),
         audio: document.getElementById('audio'),
         ai_response: '',
-        timestamp: null
+        timestamp: null,
     }
-    rtc = new AvatarRTCClient("http://localhost:8000", app.video, app.audio)
+    rtc = new AvatarRTCClient("http://3.68.221.37:8000", app.video, app.audio)
     rtc.on(AvatarRTCClient.OPEN, () => {
         console.log('RTC open');
     })
@@ -141,7 +170,7 @@
 <div class="card" style="max-width: 95%">
     <div class="card-header">Avatar Repeat Request</div>
     <div class="code-container">
-        <label for="avatar-repeat"></label><input type="text" id="avatar-repeat">
+        <label for="avatar-repeat"></label><input type="text" placeholder="Repeat Text" id="avatar-repeat">
         <button class="send-btn" onclick="repeat(this)">Send</button>
     </div>
 </div>
@@ -188,7 +217,20 @@
 </div>
 
 <script>
+    function register() {
+        avatarName = document.getElementById('avatar-name').value;
+        avatarVoice = document.getElementById('avatar-voice').value;
+        if (avatarName === '') {
+            avatarName = 'police'
+        }
+        if (avatarVoice === '') {
+            avatarVoice = 'njGdIZyXFjbOZI53tVgj'
+        }
+        rtc.register(avatarName, avatarVoice)
+    }
+
     function repeat(button, text) {
+        debugger
         const bt = button.textContent
         button.textContent = 'Sending...';
         app.timestamp = new Date().getTime();
