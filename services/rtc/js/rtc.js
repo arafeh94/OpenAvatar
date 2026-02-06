@@ -49,6 +49,9 @@ class AvatarRTCClient extends Fetcher {
     static CLOSE = 'onclose';
     static MESSAGE = 'onmessage';
     static TRACK = 'ontrack';
+    static TASK_DONE = 'task_done';
+    static NEW_BUFFER = 'new_buffer';
+    static TASK_CREATED = 'task_created';
 
     constructor(url, video_element, audio_element) {
         super(url);
@@ -120,8 +123,13 @@ class AvatarRTCClient extends Fetcher {
         this.events[AvatarRTCClient.MESSAGE]?.(event.data);
         try {
             const js_packet = JSON.parse(event.data);
-            this.fire_callbacks(js_packet);
-            js_packet.status === '204' && delete this.callbacks[js_packet.id];
+            event = js_packet['payload']?.['event'];
+            if (event !== undefined) {
+                this.events[event]?.(js_packet['payload']);
+            } else {
+                this.fire_callbacks(js_packet);
+                js_packet.status === '204' && delete this.callbacks[js_packet.id];
+            }
         } catch (err) {
             console.log('Unrefined packet received: ' + event.data, err);
         }

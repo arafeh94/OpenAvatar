@@ -1,4 +1,6 @@
+import asyncio
 import importlib
+import inspect
 import io
 import logging
 import threading
@@ -7,6 +9,7 @@ import typing
 from typing import Optional
 
 import numpy as np
+import weakref
 
 
 class ObservableEvent:
@@ -35,6 +38,46 @@ class ObservableEvent:
 
     def clear(self):
         self._event.clear()
+
+
+T = dict[str, typing.Any]
+
+
+class Observable:
+    def __init__(self):
+        self._weak_method: weakref.WeakMethod | None = None
+        self._fn: typing.Callable[[T], typing.Any] | None = None
+
+    def subscribe(self, fn: typing.Callable[[T], typing.Any]) -> None:
+        if getattr(fn, "__self__", None) is not None and getattr(fn, "__func__", None) is not None:
+            self._weak_method = weakref.WeakMethod(fn)
+            self._fn = None
+        else:
+            self._fn = fn
+            self._weak_method = None
+
+    def has_subscriber(self) -> bool:
+        if self._fn is not None:
+            return True
+        if self._weak_method is not None:
+            return self._weak_method() is not None
+        return False
+
+    def notify(self, value: T) -> None:
+        fn = self._fn
+        if fn is None and self._weak_method is not None:
+            fn = self._weak_method()
+
+        if fn is None:
+            return
+
+        fn(value)
+
+    def __call__(self, value: T) -> None:
+        self.notify(value)
+
+
+
 
 
 class SafeValue:

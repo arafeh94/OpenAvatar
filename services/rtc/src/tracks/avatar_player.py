@@ -12,20 +12,24 @@ from av import VideoFrame
 from av.frame import Frame
 
 from core.plugins.lip_sync.core.decoder import AvatarVideoDecoder
-from core.tools.utils import ObservableEvent
+from core.tools.atomic_id import AtomicID
+from core.tools.utils import ObservableEvent, Observable
 from manifest import Manifest
 from services.rtc.context import AppContext
 
 
 class PlayerStreamTrack(MediaStreamTrack):
-    def __init__(self, kind: str, idle_frame: Callable[[], Frame], events: "AvatarMediaPlayer.Event") -> None:
+    def __init__(self, kind: str, idle_frame: Callable[[], Frame], events: "AvatarMediaPlayer.Event",
+                 callbacks: "AvatarMediaPlayer.Callback" = None) -> None:
         super().__init__()
         self.kind = kind
         self._queue: asyncio.Queue[Frame] = asyncio.Queue()
         self.events = events
+        self.callbacks = callbacks
         self._start: Optional[float] = None
         self.idle_frame = idle_frame
         self.pts = 0
+        self.is_playing = False
         self.logger = logging.getLogger(f"{self.__class__.__name__}:{self.kind}")
         self.__log = Manifest().query('rtc.behaviors.log_timestamps', False)
 
@@ -52,7 +56,11 @@ class PlayerStreamTrack(MediaStreamTrack):
         try:
             data = self._queue.get_nowait()
             frame_type = 'lip-sync'
+            self.is_playing = True
         except QueueEmpty:
+            if self.is_playing and self.callbacks:
+                self.callbacks.task_done(None)
+            self.is_playing = False
             data = self.idle_frame()
             frame_type = 'idle'
 
@@ -69,24 +77,24 @@ class PlayerStreamTrack(MediaStreamTrack):
 
         if self._start is None:
             self._start = current_time
-            self.__log and self.logger.info(
-                f"frame_type:{frame_type:<8},\t"
-                f"start_time:{self._start:.4f},\t"
-                f"current_time:{current_time:.4f},\t"
-                f"data_time:{round(data_time, 4):.4f}s,\t"
-                f"wait: {round(0, 4):+.4f}s,\t"
-                f"data: {data}"
-            )
+            # self.__log and self.logger.info(
+            #     f"frame_type:{frame_type:<8},\t"
+            #     f"start_time:{self._start:.4f},\t"
+            #     f"current_time:{current_time:.4f},\t"
+            #     f"data_time:{round(data_time, 4):.4f}s,\t"
+            #     f"wait: {round(0, 4):+.4f}s,\t"
+            #     f"data: {data}"
+            # )
         else:
             wait = self._start + data_time - current_time
-            self.__log and self.logger.info(
-                f"frame_type:{frame_type:<8}\t"
-                f"start_time:{self._start:.4f},\t"
-                f"current_time:{current_time:.4f},\t"
-                f"data_time:{round(data_time, 4):.4f}s,\t"
-                f"wait: {round(wait, 4):+.4f}s,\t"
-                f"{data}"
-            )
+            # self.__log and self.logger.info(
+            #     f"frame_type:{frame_type:<8}\t"
+            #     f"start_time:{self._start:.4f},\t"
+            #     f"current_time:{current_time:.4f},\t"
+            #     f"data_time:{round(data_time, 4):.4f}s,\t"
+            #     f"wait: {round(wait, 4):+.4f}s,\t"
+            #     f"{data}"
+            # )
             await asyncio.sleep(wait)
 
         return data
@@ -98,12 +106,14 @@ def avatar_worker_decode(
         video_track: PlayerStreamTrack,
         audio_track: PlayerStreamTrack,
         events: "AvatarMediaPlayer.Event",
+        callbacks: "AvatarMediaPlayer.Callback",
 ):
     while not events.thread_quit.is_set():
         # Wait for an avatar request
         buffer = buffer_queue.get()
+        task_id = AtomicID().fetch()
+        callbacks.task_created({'task_id': task_id})
         if buffer is None:
-            print("closing buffer")
             break
         events.stream_quit.clear()
         while True:
@@ -120,6 +130,7 @@ def avatar_worker_decode(
                     except queue.Empty:
                         pass
                 video, audio, text = next(buffer)
+                callbacks.new_buffer({'task_id': task_id, 'text': text})
                 publish(video, audio, video_track, audio_track, loop, events)
             except StopIteration:
                 # This executes when we exhaust all the buffer generator and sends it to publish
@@ -179,11 +190,19 @@ class AvatarMediaPlayer:
         def is_ffs(self):
             return self.__is_ffs
 
+    class Callback:
+        def __init__(self) -> None:
+            self.task_created = Observable()
+            self.task_done = Observable()
+            self.new_buffer = Observable()
+
     def __init__(self, peer_id, persona) -> None:
         self.__thread: Optional[threading.Thread] = None
         self.__events = AvatarMediaPlayer.Event()
+        self.__callbacks = AvatarMediaPlayer.Callback()
         self.__audio: PlayerStreamTrack = PlayerStreamTrack("audio", IdleFrames.audio(), self.__events)
-        self.__video: PlayerStreamTrack = PlayerStreamTrack("video", IdleFrames.video(peer_id, persona), self.__events)
+        self.__video: PlayerStreamTrack = PlayerStreamTrack("video", IdleFrames.video(peer_id, persona), self.__events,
+                                                            self.__callbacks)
         self.__buffer_queue: Queue[Optional[Frame]] = Queue()
         self.__persona = persona
         self.__peer_id = peer_id
@@ -191,6 +210,10 @@ class AvatarMediaPlayer:
 
     def on_ffs(self, callback: Callable, args: tuple = None):
         self.__events.is_ffs.set_listener(callback, args)
+
+    @property
+    def callbacks(self):
+        return self.__callbacks
 
     @property
     def audio(self) -> MediaStreamTrack:
@@ -219,6 +242,7 @@ class AvatarMediaPlayer:
                     self.__video,
                     self.__audio,
                     self.__events,
+                    self.__callbacks,
                 ),
                 daemon=True,
             )

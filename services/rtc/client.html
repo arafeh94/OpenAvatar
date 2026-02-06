@@ -161,9 +161,18 @@
         ai_response: '',
         timestamp: null,
     }
-    rtc = new AvatarRTCClient("http://3.68.221.37:8000", app.video, app.audio)
+    rtc = new AvatarRTCClient("http://localhost:8000", app.video, app.audio)
     rtc.on(AvatarRTCClient.OPEN, () => {
         console.log('RTC open');
+    })
+    rtc.on(AvatarRTCClient.TASK_CREATED, (payload) => {
+        console.log(payload);
+    })
+    rtc.on(AvatarRTCClient.TASK_DONE, (payload) => {
+        console.log(payload);
+    })
+    rtc.on(AvatarRTCClient.NEW_BUFFER, (payload) => {
+        console.log(payload);
     })
 </script>
 
@@ -230,7 +239,6 @@
     }
 
     function repeat(button, text) {
-        debugger
         const bt = button.textContent
         button.textContent = 'Sending...';
         app.timestamp = new Date().getTime();
