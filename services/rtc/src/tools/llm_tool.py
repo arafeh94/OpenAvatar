@@ -16,6 +16,9 @@ class LLMTool(ToolRequest):
 
     async def process(self, peer: 'ServerPeer'):
         stream = AppContext().chat.ask_ai(self.query, stream=self.stream)
-        async for message in stream:
-            peer.send_packet(self.packet(message.content))
-        peer.send_packet(self.end_packet())
+        if self.stream:
+            async for message in stream:
+                peer.send_packet(self.packet(message.content))
+            peer.send_packet(self.end_packet())
+        else:
+            peer.send_packet(self.packet(stream.content))

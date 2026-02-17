@@ -12,6 +12,7 @@ from av import VideoFrame
 from av.frame import Frame
 
 from core.plugins.lip_sync.core.decoder import AvatarVideoDecoder
+from core.tools.async_generator import NonBlockingLookaheadGenerator
 from core.tools.atomic_id import AtomicID
 from core.tools.utils import ObservableEvent, Observable
 from manifest import Manifest
@@ -110,7 +111,7 @@ def avatar_worker_decode(
 ):
     while not events.thread_quit.is_set():
         # Wait for an avatar request
-        buffer = buffer_queue.get()
+        buffer: NonBlockingLookaheadGenerator = buffer_queue.get()
         task_id = AtomicID().fetch()
         callbacks.task_created({'task_id': task_id})
         if buffer is None:
@@ -133,12 +134,14 @@ def avatar_worker_decode(
                 callbacks.new_buffer({'task_id': task_id, 'text': text})
                 publish(video, audio, video_track, audio_track, loop, events)
             except StopIteration:
+                buffer.stop()
                 # This executes when we exhaust all the buffer generator and sends it to publish
                 # It does not mean that we aren't streaming!, since the publisher is on separate threads and this one
                 # just have to prepare all the frames before sending them.
                 break
             finally:
                 events.is_ffs.clear()
+
 
 
 def publish(video, audio, video_track, audio_track, loop, events: "AvatarMediaPlayer.Event"):

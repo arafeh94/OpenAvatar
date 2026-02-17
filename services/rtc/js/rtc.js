@@ -46,12 +46,15 @@ class Fetcher {
 
 class AvatarRTCClient extends Fetcher {
     static OPEN = 'onopen';
-    static CLOSE = 'onclose';
     static MESSAGE = 'onmessage';
     static TRACK = 'ontrack';
     static TASK_DONE = 'task_done';
     static NEW_BUFFER = 'new_buffer';
     static TASK_CREATED = 'task_created';
+    static STREAMING_STARTED = 'streaming_started';
+    static CONNECTING = 'connecting';
+    static CONNECTED = 'connected';
+    static DISCONNECTED = 'disconnected';
 
     constructor(url, video_element, audio_element) {
         super(url);
@@ -85,6 +88,7 @@ class AvatarRTCClient extends Fetcher {
 
     async register(persona, voice_id) {
         this.validate_connection(false);
+        this.events[AvatarRTCClient.CONNECTING]?.();
         this.persona = persona;
         this.voice_id = voice_id;
         this.peer = this.create_peer();
@@ -100,6 +104,9 @@ class AvatarRTCClient extends Fetcher {
         await this.peer.setLocalDescription(await this.peer.createAnswer());
         const params = {'token': this.token, 'sdp': JSON.stringify(this.peer.localDescription)}
         const confirm = await this.fetch('confirm', params).then(response => response.json());
+        if (confirm.status === '200') {
+            this.events[AvatarRTCClient.CONNECTED]?.();
+        }
         return confirm.status === '200';
     }
 
@@ -116,7 +123,7 @@ class AvatarRTCClient extends Fetcher {
     }
 
     onclose() {
-        this.events[AvatarRTCClient.CLOSE]?.();
+        this.events[AvatarRTCClient.DISCONNECTED]?.();
     }
 
     onmessage(event) {
@@ -151,6 +158,9 @@ class AvatarRTCClient extends Fetcher {
             this.video.srcObject = stream;
         } else if (event.track.kind === 'audio') {
             this.audio.srcObject = stream;
+        }
+        if (this.video.srcObject && this.audio.srcObject) {
+            this.events[AvatarRTCClient.STREAMING_STARTED]?.()
         }
     }
 

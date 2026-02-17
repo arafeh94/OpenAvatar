@@ -234,7 +234,7 @@ class Avatar(object):
             self.args = SimpleNamespace(**{**vars(self.args), **new_args})
 
     class AvatarBuffer:
-        def __init__(self, frame_buffer):
+        def __init__(self, frame_buffer: NonBlockingLookaheadGenerator):
             self._frame_buffer = frame_buffer
             self._frame_stream = np.array([])
             self._frame_index = 0
@@ -242,14 +242,24 @@ class Avatar(object):
         def __iter__(self):
             return self
 
+
         def __next__(self):
             try:
                 if self._frame_index >= len(self._frame_stream):
                     self._frame_index = 0
                     self._frame_stream = next(self._frame_buffer)
             except StopIteration:
+                print("cleaning avatar buffer")
+                self.close()
                 raise StopIteration
 
             frame = self._frame_stream[self._frame_index]
             self._frame_index += 1
             return frame
+
+        def close(self):
+            self._frame_buffer.stop()
+            self._frame_stream = None
+            self.frame_index = 0
+            del self._frame_stream
+            del self._frame_buffer

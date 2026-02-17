@@ -17,6 +17,7 @@ import time
 import random
 
 
+
 class AvatarTTS:
     def __init__(self, avatar: Avatar, tts_convertor: Text2Speech):
         self.tts_convertor = tts_convertor
@@ -63,7 +64,7 @@ class AvatarManager:
             avatar = self.avatar_cache[persona]
         return avatar
 
-    def tts_buffer(self, persona, text, **kwargs) -> Generator[Any, Audio, Union[str, None]]:
+    def tts_buffer(self, persona, text, **kwargs) -> NonBlockingLookaheadGenerator:
         """
         Return a generator where each yield return the frames and the audio assigned to these frames.
         Be careful, this method takes too much time. Better run it inside a thread

@@ -1,5 +1,6 @@
 <html lang="en">
 <head>
+    <meta charset="utf-8"/>
     <title>RTC Client</title>
     <script src="js/rtc.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -139,8 +140,22 @@
         <audio id="audio" autoplay controls hidden></audio>
     </div>
 
-    <label for="avatar-name"></label><input type="text" id="avatar-name" placeholder="Avatar Name">
-    <label for="avatar-voice"></label><input type="text" id="avatar-voice" placeholder="Avatar Voice">
+    <label for="avatar-name"></label>
+    <select id="avatar-name">
+        <option value="" disabled selected>Avatar Name</option>
+        <option value="mag">Aqueeda</option>
+        <option value="mag2">Aqueeda2</option>
+        <option value="police">Police</option>
+        <option value="azz">Dr. Azzam</option>
+    </select>
+    <label for="avatar-voice"></label>
+    <select id="avatar-voice">
+        <option value="" disabled selected>Avatar Voice</option>
+        <option value="ODdCC2CKa9Yz4XE46fEZ">Aqueeda V1</option>
+        <option value="4naKmbzwpzktSVEDs1YC">Aqueeda V2</option>
+        <option value="E5wYkzvAxXxnycc7Hd0i">Aqueeda V3</option>
+        <option value="RTT56bv0uv5fFrH1sarR">RAMSA</option>
+    </select>
 
     <button onclick="register()" class="send-btn" style="margin: 15px">Connect
     </button>
@@ -159,6 +174,8 @@
         video: document.getElementById('video'),
         audio: document.getElementById('audio'),
         ai_response: '',
+        default_voice: 'ODdCC2CKa9Yz4XE46fEZ',
+        default_avatar: 'mag3',
         timestamp: null,
     }
     rtc = new AvatarRTCClient("http://localhost:8000", app.video, app.audio)
@@ -174,6 +191,18 @@
     rtc.on(AvatarRTCClient.NEW_BUFFER, (payload) => {
         console.log(payload);
     })
+    rtc.on(AvatarRTCClient.CONNECTED, () => {
+        console.log('connected');
+    })
+    rtc.on(AvatarRTCClient.CONNECTING, () => {
+        console.log('connecting');
+    })
+    rtc.on(AvatarRTCClient.DISCONNECTED, () => {
+        console.log('disconnected');
+    })
+    rtc.on(AvatarRTCClient.STREAMING_STARTED, () => {
+        console.log('STREAMING_STARTED');
+    })
 </script>
 
 <div class="card" style="max-width: 95%">
@@ -187,11 +216,7 @@
 <div class="card" style="max-width: 95%">
     <div class="card-header">Tool Request</div>
     <div class="code-container">
-        <pre contenteditable="true" class="editable-code" style="white-space: pre-wrap; word-wrap: break-word;">
-            <!--@formatter:off-->
-{"llm":{"query":"what is search engine?", "stream":true, "history":[]}}
-            <!--@formatter:on-->
-        </pre>
+        <textarea id="prompt" style="width:90%; height: 80px; resize: none" placeholder="Prompt"></textarea>
         <button class="send-btn" onclick="llm_send(this)">Send</button>
     </div>
 </div>
@@ -200,6 +225,7 @@
     <div class="card-header">LLM Response</div>
     <div class="code-container">
         <div id="llm-response"></div>
+        <button class="send-btn" onclick="avatar_send(this)">Send</button>
     </div>
 </div>
 
@@ -225,15 +251,49 @@
     </div>
 </div>
 
+
+<div class="card">
+    <div class="card-header">Custom Accent Request</div>
+    <div class="code-container">
+        <code dir="rtl">
+            مَع فِقْرَتْنا هاذي، مَعانا ضَيْفَه مِن دَوْلَة الإِمارات العَرَبِيّه، بِنْت مِن بَناتْنا.
+            نِحْن فَخُورين بِها، وفَخُورين بِكِلّ الشَّباب مِن جيلْها، ضَحَّت بِراحَتْها لِأجِل راحَة غَيْرها، وهي
+            فَخُوره بإنّها سَعَّدَت الآخَرين، ومِن سَعادَتْهم هي تِخْدِم دَوْلَتْها.
+
+            رَحِّبوا مَعانا بِعائِشَه سالِم المُلّا.
+            أَهْلًا وسَهْلًا، حَيّ الله أِنْتِ يا عائِشَه، حَيّاكِ الله حَبيبَتي، شَرَّفْتِينا فِي الاستوديو.
+            مَرْحَبا مَرْحَبا فِيكِ بِنْتي، فَدَيْت رُوحِك.
+
+            داتِك يِبُون يِعْرِفون، شو المِهْنَه اللّي إِنْتِ الحين فِيها؟
+        </code>
+        <button class="send-btn" onclick="avatar_send(this)">Send</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Custom Accent Request 2</div>
+    <div class="code-container">
+        <code dir="rtl">
+            الحمد لله على السلامة. حياك الله بين خواتك وأهلك والنعم.
+واني مستأنس قاعد وياكم، والله سوالفكم الطيبة عن الأعشاب والشفا تسعد القلب.
+أنا من زمان أشتغل في العلاج بالأعشاب، يمكن من يوم كنت شاب صغير، أجمع الحنظل والحرمل والورقي من البراري.
+في ناس صعدوا الاسنصير وتعلموا بسرعة، لكن أنا لا، كنت أدرس كل عشبة خطوة خطوة، وأعرف وين تطلع وكيف تستخدمها صح.
+والسر والله العظيم رضا رب العالمين، لأنه هو الشافي الأكبر.
+الحمد لله، كل الأمور طيبة، والناس اليوم بدوا يقدرون الخير اللي في البرية عندنا من نبتات وأعشاب.
+        </code>
+        <button class="send-btn" onclick="avatar_send(this)">Send</button>
+    </div>
+</div>
+
 <script>
     function register() {
         avatarName = document.getElementById('avatar-name').value;
         avatarVoice = document.getElementById('avatar-voice').value;
         if (avatarName === '') {
-            avatarName = 'police'
+            avatarName = app.default_avatar;
         }
         if (avatarVoice === '') {
-            avatarVoice = 'njGdIZyXFjbOZI53tVgj'
+            avatarVoice = app.default_voice;
         }
         rtc.register(avatarName, avatarVoice)
     }
@@ -266,10 +326,11 @@
 
     function llm_send(button) {
         button.textContent = 'Sending...';
-        const codeText = button.previousElementSibling.textContent.trim();
+        const codeText = document.getElementById('prompt').value;
+        let js_request_llm = {"llm": {"query": codeText, "stream": false, "history": []}}
         console.log(codeText);
         app.ai_response = '';
-        rtc.request(codeText, {
+        rtc.request(js_request_llm, {
             '200': (packet) => {
                 console.log(packet);
                 button.textContent = 'Send';

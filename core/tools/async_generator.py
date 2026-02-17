@@ -10,7 +10,7 @@ class NonBlockingLookaheadGenerator:
         self._done = False
         self._lock = threading.Lock()
         self._thread = threading.Thread(target=self._prefetch, daemon=True)
-        self._prefetch()
+        self._thread.start()
 
     def _prefetch(self):
         try:
@@ -31,7 +31,9 @@ class NonBlockingLookaheadGenerator:
         result = self._queue.get()
 
         if isinstance(result, Exception):
+            self._gen.close()
             raise result
+
         if result is None:
             self._done = True
             raise StopIteration
@@ -43,9 +45,24 @@ class NonBlockingLookaheadGenerator:
         return result
 
     def stop(self):
-        """Stop the generator."""
         with self._lock:
-            if self._thread.is_alive():
-                self._done = True
-                self._queue.put(None)
-                self._thread.join()
+            self._done = True
+
+            try:
+                while True:
+                    self._queue.get_nowait()
+            except queue.Empty:
+                pass
+
+            try:
+                self._queue.put_nowait(None)
+            except queue.Full:
+                pass
+
+            try:
+                self._gen.close()
+            except Exception:
+                pass
+
+            if self._thread and self._thread.is_alive():
+                self._thread.join(timeout=0.1)
