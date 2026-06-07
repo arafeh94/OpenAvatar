@@ -46,7 +46,6 @@ class YoloFaceDetector(FaceDetector):
             results.append([x1, y1, x2, y2])
 
         boxes = np.array(results)
-        # if not self.__args.nosmooth: boxes = self.__get_smoothened_boxes(boxes, T=5)
         results = [[image[y1: y2, x1:x2], (y1, y2, x1, x2)] for image, (x1, y1, x2, y2) in zip(frames, boxes)]
 
         return results

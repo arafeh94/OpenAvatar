@@ -6,14 +6,10 @@ avatar_manager = AvatarManager()
 
 print("model loaded")
 while True:
-    prompt = "hellooo, how you are doing?"
-    if prompt == "p":
-        break
-    buffer = avatar_manager.tts_buffer("lisa_casual_720_pl", prompt)
+    buffer = avatar_manager.tts_buffer("lisa_casual_720_pl", 'Hello how are you')
     for frames, audio, text in buffer:
         for frame in frames:
             print(frame)
         print(audio)
         print(text)
     buffer.stop()
-input("Press Enter to exit...")

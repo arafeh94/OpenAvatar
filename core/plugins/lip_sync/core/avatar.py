@@ -22,6 +22,8 @@ import cv2
 
 
 class Avatar(object):
+    STATE_IDLE = 'idle'
+    STATE_TALKING = 'talking'
     """
    Avatar class for generating lip-sync animations based on video and audio input.
 
@@ -38,11 +40,8 @@ class Avatar(object):
 
        - avatar_dir (str): The directory path where avatar-related assets are stored.
        - frame (str): A file path template for frames. Each frame is generated based on this template.
-         TODO: This should be updated based on further specifications for frame generation.
        - face (str): A file path template for face data (e.g., facial features or landmarks).
-         TODO: This should be updated based on further specifications for face data storage.
        - video (str): A file path template for video data.
-         TODO: This should be updated based on further specifications for video processing.
        - fps (int): The frame rate (frames per second) used for generating lip-sync.
        - wav2lip_batch_size (int): The batch size used in the Wav2Lip model.
          This should be divisible by `fps` for best results.
@@ -75,20 +74,20 @@ class Avatar(object):
         self.args = SimpleNamespace(**{**dict(default_values), **kwargs})
 
         # initialization
-        self.face_detection_results = None
-        self.video_frames = None
+        self.face_detection_results = {}
+        self.video_frames = {}
         self.id = AtomicID().fetch()
         self.frame_offset = SafeValue(0)
 
     def init(self):
-        self.face_detection_results = self._get_avatar_face_detection_results()
-        self.video_frames = self._get_avatar_videos_frames()
+        self.face_detection_results[self.STATE_IDLE] = self._get_avatar_face_detection_results()
+        self.video_frames[self.STATE_IDLE] = self._get_avatar_videos_frames()
 
-    def _get_avatar_videos_frames(self):
-        if self.video_frames is not None:
-            return self.video_frames
+    def _get_avatar_videos_frames(self, state=STATE_IDLE):
+        if state in self.video_frames:
+            return self.video_frames[state]
 
-        avatar_video_frames_path = os.path.join(self.args.avatar_dir, self.args.frame.format(self.avatar_id))
+        avatar_video_frames_path = os.path.join(self.args.avatar_dir, self.args.frame.format(self.avatar_id, state))
         if not os.path.exists(avatar_video_frames_path):
             raise Exception("avatar_video_frames_path does not exists. path: {}".format(avatar_video_frames_path))
 
@@ -96,11 +95,11 @@ class Avatar(object):
             full_frames = pickle.load(f)
             return full_frames
 
-    def _get_avatar_face_detection_results(self):
-        if self.face_detection_results is not None:
-            return self.face_detection_results
+    def _get_avatar_face_detection_results(self, state=STATE_IDLE):
+        if state in self.face_detection_results:
+            return self.face_detection_results[state]
 
-        avatar_face_det_path = os.path.join(self.args.avatar_dir, self.args.face.format(self.avatar_id))
+        avatar_face_det_path = os.path.join(self.args.avatar_dir, self.args.face.format(self.avatar_id, state))
         if not os.path.exists(avatar_face_det_path):
             raise Exception("avatar_video_frames_path does not exists. path: {}".format(avatar_face_det_path))
 
@@ -108,8 +107,8 @@ class Avatar(object):
             face_det_results = pickle.load(f)
             return face_det_results
 
-    def _get_avatar_video(self):
-        avatar_video_path = os.path.join(self.args.avatar_dir, self.args.video.format(self.avatar_id))
+    def _get_avatar_video(self, state=STATE_IDLE):
+        avatar_video_path = os.path.join(self.args.avatar_dir, self.args.video.format(self.avatar_id, state))
 
         if not os.path.exists(avatar_video_path):
             raise Exception("avatar_video_frames_path does not exists. path: {}".format(avatar_video_path))
@@ -135,9 +134,9 @@ class Avatar(object):
             i += 1
         return mel_chunks
 
-    def _base_frame_generator(self, mels, starting_frame):
-        face_det_results = self._get_avatar_face_detection_results()
-        frames = self._get_avatar_videos_frames()
+    def _base_frame_generator(self, mels, starting_frame, state=STATE_IDLE):
+        face_det_results = self._get_avatar_face_detection_results(state)
+        frames = self._get_avatar_videos_frames(state)
 
         img_batch, mel_batch, frame_batch, coords_batch = [], [], [], []
         for i, m in enumerate(mels):
@@ -241,7 +240,6 @@ class Avatar(object):
 
         def __iter__(self):
             return self
-
 
         def __next__(self):
             try:

@@ -4,4 +4,4 @@ from core.tools import utils
 
 utils.enable_logging(level='INFO')
 creator = AvatarCreator(YoloFaceDetector())
-creator.create('mag', 'mag.mp4')
+creator.create('mags', 'az.mp4')

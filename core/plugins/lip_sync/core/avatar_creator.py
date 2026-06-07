@@ -3,16 +3,15 @@ import os
 import pickle
 import shutil
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
-import torch
-from tqdm import tqdm
 
 from core.interfaces.base_face_detection import FaceDetector
-from core.plugins.face_detectors import YoloFaceDetector
-from core.plugins.lip_sync.wave2lip.face_detection.api import FaceAlignment, LandmarksType
 from manifest import Manifest
+
+from core.plugins.lip_sync.core.avatar import Avatar
 
 
 class AvatarCreator(object):
@@ -22,25 +21,25 @@ class AvatarCreator(object):
         self.__args = SimpleNamespace(**kwargs)
         self.__logger = logging.getLogger(self.__class__.__name__)
 
-    def create(self, persona, idle_video_path):
+    def create(self, persona, video_path, state=Avatar.STATE_IDLE):
         self.__logger.info(f'Creating avatar for {persona}')
-        self.__logger.info(f'Using {idle_video_path}')
+        self.__logger.info(f'Using {video_path}')
         self.__logger.info("Capturing Video")
-        video_stream = cv2.VideoCapture(idle_video_path)
+        video_stream = cv2.VideoCapture(video_path)
         self.__logger.info("Extracting Frames")
         frames = self._extract_frames(video_stream)
         self.__logger.info("Extracting Faces")
         faces = self._extract_face(frames)
         self.__logger.info("Saving frames")
-        self.__save(frames, self.__path('frame', persona))
+        self.__save(frames, self.__path('frame', persona, state))
         self.__logger.info("Saving faces")
-        self.__save(faces, self.__path('face', persona))
+        self.__save(faces, self.__path('face', persona, state))
         self.__logger.info("Saving idle video")
-        shutil.copyfile(idle_video_path, self.__path('video', persona))
+        shutil.copyfile(video_path, self.__path('video', persona, state))
         self.__logger.info("Done. Results extracted to:")
-        self.__logger.info("frames: {}".format(self.__path('frame', persona)))
-        self.__logger.info("faces: {}".format(self.__path('face', persona)))
-        self.__logger.info("video: {}".format(self.__path('video', persona)))
+        self.__logger.info("frames: {}".format(self.__path('frame', persona, state)))
+        self.__logger.info("faces: {}".format(self.__path('face', persona, state)))
+        self.__logger.info("video: {}".format(self.__path('video', persona, state)))
 
     # noinspection PyTypeChecker
     @staticmethod
@@ -49,9 +48,9 @@ class AvatarCreator(object):
             pickle.dump(obj, file)
 
     @staticmethod
-    def __path(kind, persona):
+    def __path(kind, persona, state):
         dir_path = Manifest().get('avatar')['avatar_dir']
-        file_name = Manifest().get('avatar')[kind].format(persona)
+        file_name = Manifest().get('avatar')[kind].format(persona, state)
         return os.path.join(dir_path, file_name)
 
     def _extract_frames(self, video_stream) -> list:
